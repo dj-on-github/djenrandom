@@ -2,5 +2,7 @@
 *.o
 *.a
 *.S
+genrandom
+Icon*
 
 

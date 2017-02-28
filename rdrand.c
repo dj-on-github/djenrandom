@@ -291,7 +291,7 @@ return cf_error_status;
 int rdrand_get_uint(unsigned int *dest)
 {
 	unsigned int therand;
-	if (_rdrand32_step(&therand))
+	if (rdrand32_step(&therand))
 	{
 		*dest = therand;
 		return 1;
@@ -302,7 +302,7 @@ int rdrand_get_uint(unsigned int *dest)
 int rdseed_get_uint(unsigned int *dest)
 {
 	unsigned int therand;
-	if (_rdseed32_step(&therand))
+	if (rdseed32_step(&therand))
 	{
 		*dest = therand;
 		return 1;
@@ -313,7 +313,7 @@ int rdseed_get_uint(unsigned int *dest)
 int rdrand_get_ulint(unsigned long long int *dest)
 {
 	unsigned long long int therand;
-	if (_rdrand64_step(&therand))
+	if (rdrand64_step(&therand))
 	{
 		*dest = (unsigned long long int)therand;
 		return 1;
@@ -324,7 +324,7 @@ int rdrand_get_ulint(unsigned long long int *dest)
 int rdseed_get_ulint(unsigned long long int *dest)
 {
 	unsigned long long int therand;
-	if (_rdseed64_step(&therand))
+	if (rdseed64_step(&therand))
 	{
 		*dest = (unsigned long long int)therand;
 		return 1;
@@ -349,7 +349,7 @@ unsigned int therand;
 
   do
   {
-	success=_rdrand32_step(&therand);
+	success=rdrand32_step(&therand);
   } while((success == 0) || (count++ < retry_limit));
   
   if (success == 1)
@@ -373,7 +373,7 @@ unsigned int therand;
 
   do
   {
-	success=_rdseed32_step(&therand);
+	success=rdseed32_step(&therand);
   } while((success == 0) || (count++ < retry_limit));
   
   if (success == 1)
@@ -405,7 +405,7 @@ int i=0;
 		count = 0;
 		do
 		{
-        		success=_rdrand64_step(dest);
+        		success=rdrand64_step(dest);
 		} while((success == 0) && (count++ < retry_limit));
 		if (success == 0) return 0;
 		dest=&(dest[1]);
@@ -424,7 +424,7 @@ unsigned int i;
 		count = 0;
 		do
 		{
-        		success=_rdseed64_step(dest);
+        		success=rdseed64_step(dest);
 		} while((success == 0) && (count++ < retry_limit));
 		if (success == 0) return 0;
 		dest=&(dest[1]);
@@ -468,7 +468,7 @@ int rdrand_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned 
 		count = 0;
 		do
 		{
-        		success=_rdrand64_step(&qrand);
+        		success=rdrand64_step(&qrand);
 		} while((success == 0) || (count++ < retry_limit));
 
 		if (success == 1) 
@@ -487,7 +487,7 @@ int rdrand_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned 
 		count = 0;
                 do
                 {
-                	success=_rdrand32_step(&drand);
+                	success=rdrand32_step(&drand);
                 } while((success == 0) || (count++ < retry_limit));
 
                 if (success == 1)
@@ -528,7 +528,7 @@ int rdseed_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned 
 		count = 0;
 		do
 		{
-        		success=_rdseed64_step(&qrand);
+        		success=rdseed64_step(&qrand);
 		} while((success == 0) || (count++ < retry_limit));
 
 		if (success == 1) 
@@ -547,7 +547,7 @@ int rdseed_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned 
 		count = 0;
                 do
                 {
-                	success=_rdseed32_step(&drand);
+                	success=rdseed32_step(&drand);
                 } while((success == 0) || (count++ < retry_limit));
 
                 if (success == 1)
@@ -592,7 +592,7 @@ int rdrand_get_n_uints(int n, unsigned int *dest)
 
         for (i=0; i<qwords; i++)
         {
-                if (_rdrand64_step(&qrand))
+                if (rdrand64_step(&qrand))
                 {
                         *qptr = qrand;
                         qptr++;
@@ -605,7 +605,7 @@ int rdrand_get_n_uints(int n, unsigned int *dest)
         dest = (unsigned int*)qptr;
         for (i=0; i<dwords; i++)
         {
-                if (_rdrand32_step(&drand))
+                if (rdrand32_step(&drand))
                 {
                         *dest = drand;
                         dest++;
@@ -663,7 +663,7 @@ unsigned int length;
 	/* Get a temporary random number for use in the residuals. Failout if retry fails */
 	if (startlen > 0)
 	{
-		if (_rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
+		if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
 	}
 
 	/* populate the starting misaligned block */
@@ -674,12 +674,12 @@ unsigned int length;
 	}
 
 	/* populate the central aligned block. Fail out if retry fails */
-	if (_rdrand_get_n_qints_retry(length, 10, (void *)(blockstart)) == 0) return 0;
+	if (rdrand_get_n_qints_retry(length, 10, (void *)(blockstart)) == 0) return 0;
 
 	/* populate the final misaligned block */
 	if (residual > 0)
 	{
-		if (_rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
+		if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
 		for (i = 0; i<residual; i++)
 		{
 			residualstart[i] = (unsigned char)(temprand & 0xff);
@@ -690,60 +690,6 @@ unsigned int length;
         return 1;
 }
 
-/***************************************************************/
-/* Two methods of computing a reseed key                       */
-/*   The first takes multiple random numbers through RdRand    */
-/*   with intervening delays to ensure reseeding and performs  */
-/*   AES-CBC-MAC over the data to compute the seed value.      */
-/*                                                             */
-/*   The second takes multiple random numbers through RdRand   */
-/*   without  intervening delays to ensure reseeding and       */
-/*   performs AES-CBC-MAC over the data to compute the seed    */
-/*   value. More values are gathered than the first method,to  */
-/*   ensure reseeding without needing delays.                  */
-/*                                                             */
-/* Note that these algorithms ensure the output value to be a  */
-/* 'True Random Number' rather than a 'Cryptographically       */
-/* Secure Random Number' which is what RdRand produces         */
-/* natively.                                                   */
-/***************************************************************/
-
-/************************************************************************************/
-/* CBC-MAC together 32 128 bit values, gathered with delays between, to guarantee   */
-/* some interveneing reseeds.                                                       */
-/* Creates a random value that is fully forward and backward prediction resistant,  */
-/* suitable for seeding a NIST SP800-90 Compliant, FIPS 1402-2 certifiable SW DRBG  */
-/************************************************************************************/
-
-int rdrand_get_seed128_retry(unsigned int retry_limit, void *buffer)
-{
-	unsigned char m[16];
-	unsigned char key[16];
-	unsigned char ffv[16];
-	unsigned char xored[16];
-	unsigned int i;
-
-	/* Chose an arbitary key and zero the feed_forward_value (ffv) */
-	for (i=0;i<16;i++)
-	{
-		key[i]=(unsigned char)i;
-		ffv[i]=0;
-	}
-
-	/* Perform CBC_MAC over 32 * 128 bit values, with 10us gaps between each 128 bit value        */
-	/* The 10us gaps will ensure multiple reseeds within the HW RNG with a large design margin.   */
-	
-	for (i=0; i<32;i++)
-	{
-		usleep(10);
-		if(_rdrand_get_n_qints_retry(2,retry_limit,(unsigned long long int*)m) == 0) return 0;
-		xor_128(m,ffv,xored);
-		aes128k128d(key,xored,ffv);
-	}
-
-	for (i=0;i<16;i++) ((unsigned char *)buffer)[i] = ffv[i];
-	return 1;
-}
 
 
 
