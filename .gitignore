@@ -1,0 +1,6 @@
+# Ignore compiled output.
+*.o
+*.a
+*.S
+
+
