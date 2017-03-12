@@ -60,7 +60,7 @@ fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bi
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
-fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]\n");
+fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
 fprintf(stderr,"\n");
 fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
 fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
