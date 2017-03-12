@@ -27,6 +27,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "aes128k128d.h"
 #include "genrandommodel.h"
@@ -60,7 +61,7 @@ void xor16(unsigned char *a, unsigned char *b, unsigned char *c)
 	}
 }
 
-		
+/* return 16 bytes of uniform random numbers to rngstate */
 int getrand16(t_rngstate* rngstate)
 {
 	int index;
@@ -436,6 +437,293 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
     return (int)x;
 }
 
+int pcg_lcg(t_modelstate* modelstate, t_rngstate* rngstate) {
+    switch (modelstate->pcg_state_size) {
+    case 16:
+        modelstate->pcg16_state = modelstate->pcg16_state * modelstate->pcg16_multiplier;
+        modelstate->pcg16_state += modelstate->pcg16_adder;
+        break;
+    case 32:
+        modelstate->pcg32_state  = modelstate->pcg32_state * modelstate->pcg32_multiplier;
+        modelstate->pcg32_state += modelstate->pcg32_adder;
+        break;
+    case 64:
+        modelstate->pcg64_state  = modelstate->pcg64_state * modelstate->pcg64_multiplier;
+        modelstate->pcg64_state += modelstate->pcg64_adder;
+        break;
+    case 128:
+        /*modelstate->pcg16_state = modelstate->pcg16_state * modelstate->pcg16_multiplier;
+        modelstate->pcg16_state += modelstate->pcg16_adder;*/
+        break; 
+    }
+    return 0;
+}
+
+int pcg_mcg(t_modelstate* modelstate, t_rngstate* rngstate) {
+    switch (modelstate->pcg_state_size) {
+    case 16:
+        modelstate->pcg16_state = modelstate->pcg16_state * modelstate->pcg16_multiplier;
+        break;
+    case 32:
+        modelstate->pcg32_state  = modelstate->pcg32_state * modelstate->pcg32_multiplier;
+        break;
+    case 64:
+        modelstate->pcg64_state  = modelstate->pcg64_state * modelstate->pcg64_multiplier;
+        break;
+    case 128:
+        /*modelstate->pcg16_state = modelstate->pcg16_state * modelstate->pcg16_multiplier;*/
+        break; 
+    }
+    return 0;
+}
+
+/* XSH_RS : Xor Shift, random xor shift. Stage in output function. Doesn't change state
+            Outputs half the state.
+*/
+int pcg_xsh_rs(t_modelstate* modelstate, t_rngstate* rngstate) {
+    uint64_t current;
+    switch (modelstate->pcg_state_size) {
+    case 16:
+        current = ((modelstate->pcg16_state >> 7) ^ modelstate->pcg16_state);
+        current = ((current >> ((modelstate->pcg16_state >> 14) + 3))) % 256;
+        return current % 256;
+    case 32:
+        current = ((modelstate->pcg32_state >> 11u) ^ modelstate->pcg32_state);
+        current = (current >> ((modelstate->pcg32_state >> 30u) + 11u)) % 65536;
+        return current % 65536;
+    case 64:
+        current = ((modelstate->pcg64_state >> 22u) ^ modelstate->pcg64_state);
+        current = (current >> ((modelstate->pcg64_state >> 61u) + 22u)) % 4294967296u;
+        return current;
+    }
+    return 0;
+}
+
+
+/* Rotate 8 */
+uint8_t rotate_uint8(uint8_t x, int n) {
+    n = n % 8;
+    if (n==0)
+        return x;
+    return ((x >> n) | (x << (8- n))); 
+}
+
+/* Rotate 16 */
+uint16_t rotate_uint16(uint16_t x, int n) {
+    n = n % 16;
+    if (n==0)
+        return x;
+    return ((x >> n) | (x << (16 - n))); 
+}
+
+/* Rotate 32 */
+uint32_t rotate_uint32(uint32_t x, int n) {
+    n = n % 32;
+    if (n==0)
+        return x;
+    return ((x >> n) | (x << (32 - n))); 
+}
+
+/* Rotate 64 */
+uint64_t rotate_uint64(uint64_t x, int n) {
+    n = n % 64;
+    if (n==0)
+        return x;
+    return ((x >> n) | (x << (64 - n))); 
+}
+
+/* Rotate 128 bit number made of 2 64 bit uints                 */
+/* The input array has two uint64s. Index 0 holds the low bits. */
+void rotate_uint128(uint64_t* high_low_in, uint64_t* high_low_out, int n)
+{
+    uint64_t temp_high;
+    uint64_t temp_low;
+    
+    /* limit to 128 */
+    n = n % 128;
+
+    /* If the rotate is >= 64, then it is more efficient to swap the values
+       which is like shifting 64. So there n-64 shifts remaining */
+    if (n  >= 64) {
+        temp_low = high_low_in[1];
+        temp_high = high_low_in[0];
+        n = n - 64;
+    }
+    else {
+        temp_low = high_low_in[0];
+        temp_high = high_low_in[1];
+    }
+
+    if (n==0) return;
+
+    high_low_out[0] = ((temp_low << n) | temp_high >> (64 - n));
+    high_low_out[1] = ((temp_high << n) | temp_low >> (64 - n));
+}
+
+/* Shift right a 128 bit number made of 2 64 bit uints          */
+/* The input array has two uint64s. Index 0 holds the low bits. */
+void shift_right_uint128(uint64_t* high_low_in, uint64_t* high_low_out, int n)
+{   
+    /* limit to 128 */
+    n = n % 128;
+
+    /* If the rotate is > 127, returns zero */
+    if (n  > 127) {
+        high_low_out[0]=0;
+        high_low_in[1]=0;
+        return;
+    }
+
+    if (n==0) {
+        high_low_out[0]=high_low_in[0];
+        high_low_out[1]=high_low_in[1];
+        return;
+    }
+
+    high_low_out[0] = ((high_low_in[0] >> n) | high_low_in[1] << (64 - n));
+    high_low_out[1] = (high_low_in[1] >> n);
+}
+
+/* Shift left a 128 bit number made of 2 64 bit uints          */
+/* The input array has two uint64s. Index 0 holds the low bits. */
+void shift_left_uint128(uint64_t* high_low_in, uint64_t* high_low_out, int n)
+{   
+    /* limit to 128 */
+    n = n % 128;
+
+    /* If the rotate is > 127, returns zero */
+    if (n  > 127) {
+        high_low_out[0]=0;
+        high_low_in[1]=0;
+        return;
+    }
+
+    if (n==0) {
+        high_low_out[0]=high_low_in[0];
+        high_low_out[1]=high_low_in[1];
+        return;
+    }
+
+    high_low_out[0] = (high_low_in[0] << n);
+    high_low_out[1] = (high_low_in[1] << n) | (high_low_in[0] >> (64 - n));
+}
+
+/* XSH_RR : Xor Shift, random rotation. Stage in output function. Doesn't change state
+            Outputs half the state.
+    pcg_rotr_8(((state >> 5u) ^ state) >> 5u, state >> 13u)
+    pcg_rotr_16(((state >> 10u) ^ state) >> 12u, state >> 28u);
+    pcg_rotr_32(((state >> 18u) ^ state) >> 27u, state >> 59u);
+    pcg_rotr_64(((state >> 29u) ^ state) >> 58u, state >> 122u);
+
+*/
+uint64_t pcg_xsh_rr(t_modelstate* modelstate, t_rngstate* rngstate) {
+    uint16_t current16;
+    uint32_t current32;
+    uint64_t current64;
+    int rotate_amount;
+    switch (modelstate->pcg_state_size) {
+    case 16:
+        current16 = ((modelstate->pcg16_state >> 5) ^ modelstate->pcg16_state) >> 5;
+        rotate_amount =  modelstate->pcg16_state >> 13u;
+        /*printf("  16: in-%04x",(unsigned int)(current16)); */
+        current16 = rotate_uint8(current16,rotate_amount); 
+        /*printf("  %04x",(unsigned int)(current16)); */
+        return current16 % 256;
+    case 32:
+        current32 = ((modelstate->pcg32_state >> 10) ^ modelstate->pcg32_state) >> 12;
+        rotate_amount =  modelstate->pcg32_state >> 28u;
+        /*printf("  32: in-%08x",(unsigned int)(current32));*/
+        current32 = rotate_uint16(current32,rotate_amount); 
+        /*printf("  %08x",(unsigned int)(current32));*/
+        return current32 & 0xffffffff;
+    case 64:
+        current64 = ((modelstate->pcg64_state >> 18) ^ modelstate->pcg64_state) >> 27;
+        rotate_amount =  modelstate->pcg64_state >> 59u;
+        /*printf("  64: in-%016llx",(current64));*/
+        current64 = current64 & 0xffffffff;
+        current64 = rotate_uint32(current64,rotate_amount); 
+        /*printf(" rot(%d) ",rotate_amount);
+        printf("  %016llx",(current64));*/
+        return current64;
+    }
+    return 0;
+}
+
+/* The PCG main routine which calls the internal state update function
+   followed by the output function. The internal state update can be
+   MCG or LCG. The output function can be XSH_RS or XSH_RS. In this
+   implementation, the output size is always half the state size.*/
+int pcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
+{   
+    /* If we have no more bits to return, get a new value
+     * from the PCG algorithm. Else Shift bits out.
+     */
+    if (modelstate->pcg_index == 0) {
+
+        /* Update the internal state */
+        if (modelstate->pcg_alg == PCG_MCG) {
+            pcg_mcg(modelstate,rngstate);
+            /*printf("New MCG 0x%016llx",modelstate->pcg64_state);*/
+        }
+        else {
+            pcg_lcg(modelstate,rngstate);  
+            /*printf("New LCG 0x%016llx",modelstate->pcg64_state); */  
+        } 
+
+        /* Call the output function */
+        if (modelstate->pcg_of == XSH_RS) {
+            modelstate->pcg_output = pcg_xsh_rs(modelstate,rngstate);
+            /*printf("  RS 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
+        }
+        else if (modelstate->pcg_of == XSH_RR) {
+            modelstate->pcg_output = pcg_xsh_rr(modelstate,rngstate);
+            /*printf("  RR 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
+        }
+        
+           
+        /* Return one bit from the result and reset the index */
+        modelstate->pcg_index = (modelstate->pcg_state_size >> 1) -1;
+        return (int)(modelstate->pcg_output & 0x1);
+    }
+    else {
+        modelstate->pcg_index -= 1;
+        modelstate->pcg_output = modelstate->pcg_output >> 1;
+        return (int)(modelstate->pcg_output & 0x1);
+    }
+}
+
+int xorshiftsource(t_modelstate* modelstate, t_rngstate* rngstate)
+{
+    unsigned int x;
+    
+    if (modelstate->xorshift_size == 32)
+    {
+	    x = modelstate->xorshift_state_a;
+	    x = x ^ (x << 13);
+	    x = x ^ (x >> 17);
+	    x = x ^ (x << 5);
+	    modelstate->xorshift_state_a = x;
+	    return (int)x;
+    }
+    else /* xorshift128 */
+    {
+    	x = modelstate->xorshift_state_d;
+    	
+	    x = x ^ (x << 11);
+	    x = x ^ (x >> 8);
+	    
+	    modelstate->xorshift_state_d = modelstate->xorshift_state_c;
+	    modelstate->xorshift_state_c = modelstate->xorshift_state_b;
+	    modelstate->xorshift_state_b = modelstate->xorshift_state_a;
+
+	    x = x ^ modelstate->xorshift_state_a;
+	    x = x ^ (modelstate->xorshift_state_a >> 19);	
+	    modelstate->xorshift_state_a = x;
+	    return (int)x;
+    }
+
+}
+
 
 int filesource(t_modelstate* modelstate, t_rngstate* rngstate)
 {
@@ -477,15 +765,18 @@ int filesourcehex(t_modelstate* modelstate, t_rngstate* rngstate)
 	unsigned char myfilechar;
 	doneit = 0;
 
-	/* Fetch hex characters.,
- 	 * others are skipped
+	/* Fetch characters until we get a hex one.
+ 	 * Others are skipped. If we already have
+ 	 * a character and the bits are being shifted out
+ 	 * then the else clause is executed and another
+ 	 * bit is shifted out.
  	 */
 	if (rngstate -> fileindex == 0)
 	{
 		do
 		{
 			int_c = fgetc(modelstate->infile);
-/*printf("\n GOT %c  ",int_c);*/
+			
 			if (int_c == EOF)
 			{
 				rngstate->filechar = 0;
@@ -558,7 +849,6 @@ int filesourcehex(t_modelstate* modelstate, t_rngstate* rngstate)
 			}
 		} while (doneit==0);
 		result = ((rngstate->filechar & 0x08)>>3) & 0x01;
-/*printf(" %d ",result);*/
 		rngstate->fileindex++;
 	}
 	else
@@ -568,11 +858,9 @@ int filesourcehex(t_modelstate* modelstate, t_rngstate* rngstate)
 		rngstate->filechar = myfilechar;
 		result = ((myfilechar & 0x08)>>3) & 0x01;
 		rngstate->fileindex++;
-/*printf(" %d ",result);*/
 		if ((rngstate->fileindex)==4)
 		{
 			rngstate->fileindex = 0;
-/*printf("\n");*/
 		}
 	}
 	return(result);
@@ -690,18 +978,68 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 void lcginit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
     unsigned long long state;
-
-	modelstate->lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
-    modelstate->lcg_c = 11ULL;
-    modelstate->lcg_m = 0x0001000000000000ULL; /* 2**48 */
-    modelstate->lcg_truncate = 15; /* Lower bits to truncate */
-    modelstate->lcg_x = 0x63a3d28a2682b002ULL; /* Initial state */
-    modelstate->lcg_outbits= 33; /* number of bits in output */
+    
+    modelstate->lcg_mask = (1 << (modelstate->lcg_m)) -1;
     
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(sizeof(unsigned long long), &state, rngstate);
-		modelstate->lcg_x = (modelstate->lcg_x ^ state) % (modelstate->lcg_m);
+		modelstate->lcg_x = (modelstate->lcg_x ^ state) & (modelstate->lcg_mask);
+	}
+}
+
+void pcginit(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+
+    /* Multiplier constants for the LCG part for the different state sizes */
+    /*modelstate->pcg8_multiplier    = 0x8D;*/
+    modelstate->pcg16_multiplier   = 0x321D;
+    modelstate->pcg32_multiplier   = 0x2C9277B5;
+    modelstate->pcg64_multiplier   = 0x5851F42D4C957F2D;
+    modelstate->pcg128_multiplier[0]  = 0x4385DF649FCCF645;
+    modelstate->pcg128_multiplier[1]  = 0x2360ED051FC65DA4;
+    
+    /* Adder constants for the LCG part for the different state sizes */
+    /*modelstate->pcg8_adder    = 0x4D;*/
+    modelstate->pcg16_adder   = 0xBB75;
+    modelstate->pcg32_adder   = 0xAC564B05;
+    modelstate->pcg64_adder   = 0x14057B7EF767814F;
+    modelstate->pcg128_adder[0]  = 0x14057B7EF767814F;
+    modelstate->pcg128_adder[1]  = 0x5851F42D4C957F2D;
+        
+    /* Arbitary random start state gathered by running genrandom -s */
+    /*modelstate->pcg8_state    = 0x6058;*/
+    modelstate->pcg16_state   = 0x7109;
+    modelstate->pcg32_state   = 0x4B55CD7E;
+    modelstate->pcg64_state   = 0x71A56ADF832343F1;
+    modelstate->pcg128_state[0] = 0x3C14A2F859655FEB;
+    modelstate->pcg128_state[1] = 0x49BC03F5388BAD9D;
+    
+	if (rngstate->randseed==1)
+	{
+	    /*nondeterministic_bytes(sizeof(uint8_t), &(modelstate->pcg8_state), rngstate);*/
+	    nondeterministic_bytes(sizeof(uint16_t), &(modelstate->pcg16_state), rngstate);
+	    nondeterministic_bytes(sizeof(uint32_t), &(modelstate->pcg32_state), rngstate);
+	    nondeterministic_bytes(sizeof(uint64_t), &(modelstate->pcg64_state), rngstate);
+	    nondeterministic_bytes(sizeof(uint64_t), &(modelstate->pcg128_state[0]), rngstate);
+	    nondeterministic_bytes(sizeof(uint64_t), &(modelstate->pcg128_state[1]), rngstate);
+	}
+}
+
+
+void xorshiftinit(t_modelstate *modelstate, t_rngstate *rngstate)
+{   
+    modelstate->xorshift_state_a = 0xA634716A; 
+    modelstate->xorshift_state_b = 0x998FCD1F;
+    modelstate->xorshift_state_c = 0x6A9B90FE;
+    modelstate->xorshift_state_d = 0x7344E998;
+    
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(sizeof(unsigned int), &(modelstate->xorshift_state_a), rngstate);
+	    nondeterministic_bytes(sizeof(unsigned int), &(modelstate->xorshift_state_b), rngstate);
+	    nondeterministic_bytes(sizeof(unsigned int), &(modelstate->xorshift_state_c), rngstate);
+	    nondeterministic_bytes(sizeof(unsigned int), &(modelstate->xorshift_state_d), rngstate);
 	}
 }
 
@@ -711,7 +1049,6 @@ void fileinit(t_modelstate* modelstate, t_rngstate* rngstate)
 	rngstate->filechar = 0x00;
 	rngstate->fileindex = 0;
 	smoothinit(modelstate, rngstate);
-
 }
 
 void normalinit(t_modelstate *modelstate, t_rngstate *rngstate)
@@ -729,6 +1066,5 @@ void normalinit(t_modelstate *modelstate, t_rngstate *rngstate)
 		aes128k128d(rngstate->k,rngstate->v,out);
 		aes128k128d(out,rngstate->k,rngstate->rngbits);
 	}
-
 }
 

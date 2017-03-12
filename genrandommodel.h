@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
 
 typedef struct {
 		double t;
@@ -41,10 +42,41 @@ typedef struct {
 		unsigned long long lcg_a; /* LCG Model */
 		unsigned long long lcg_c;
 		unsigned long long lcg_m;
+		unsigned long long lcg_mask;
 		unsigned long long lcg_x;
 		unsigned int lcg_truncate;
 		unsigned int lcg_outbits;	
-			
+		
+		/* PCG States */
+		unsigned int pcg_state_size;
+		unsigned int pcg_index;
+		int pcg_alg;
+		int pcg_of;
+		uint64_t pcg_output;
+		
+		uint16_t pcg16_state;
+		uint32_t pcg32_state;
+		uint64_t pcg64_state;
+		uint64_t pcg128_state[2];		
+		
+		uint16_t  pcg16_multiplier;
+        uint32_t  pcg32_multiplier;
+        uint64_t  pcg64_multiplier;
+        uint64_t  pcg128_multiplier[2];
+        
+        uint16_t   pcg16_adder;
+        uint32_t  pcg32_adder;
+        uint64_t  pcg64_adder;
+        uint64_t  pcg128_adder[2];
+        
+        /* XORSHIFT States */
+        
+		uint32_t xorshift_size;
+		uint32_t xorshift_state_a;
+		uint32_t xorshift_state_b;
+		uint32_t xorshift_state_c;
+		uint32_t xorshift_state_d;
+		
 		int using_stepnoise;
 		double stepnoise;
 		int using_jfile;
@@ -89,6 +121,8 @@ int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int xorshiftsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int filesource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int filesourcehex(       t_modelstate *modelstate, t_rngstate* rngstate);
 
@@ -105,6 +139,15 @@ void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
 void lcginit( t_modelstate* modelstate, t_rngstate* rngstate);
+void pcginit( t_modelstate* modelstate, t_rngstate* rngstate);
+void xorshiftinit( t_modelstate* modelstate, t_rngstate* rngstate);
 void normalinit(     t_modelstate *modelstate, t_rngstate* rngstate);
 void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
+
+#define PCG_LCG 1
+#define PCG_MCG 2
+
+#define XSH_RS 1
+#define XSH_RR 2
+
 

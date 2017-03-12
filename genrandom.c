@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <stdint.h>
 
 #include "aes128k128d.h"
 #include "genrandommodel.h"
@@ -45,26 +46,27 @@
 #define MODEL_NORMAL 4 
 #define MODEL_FILE 5
 #define MODEL_LCG 6
+#define MODEL_PCG 7
+#define MODEL_XORSHIFT 8
 
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
 #define INFORMAT_BINARY 2
 
-/*#define WIDTH_8 0
-#define WIDTH_16 1
-#define WIDTH_32 2
-#define WIDTH_64 3
-#define WIDTH_128 4
-#define WIDTH_256 5 */
-
 void display_usage() {
-fprintf(stderr,"Usage: genrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>] [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>] [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>] [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>] [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>] [-k <1K_Blocks>] [-w [8|16|32|64|128]]\n");
+fprintf(stderr,"Usage: genrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
+fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]\n"); 
+fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
+fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
+fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
+fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
+fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]\n");
 fprintf(stderr,"\n");
 fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
 fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
 fprintf(stderr,"\n");
 
-fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg||normal|file>   Select random source model\n");
+fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>   Select random source model\n");
 fprintf(stderr,"\nStep Update Metastable Source model (-m sums) Options\n\n");
 fprintf(stderr,"  -l, --left=<left_stepsize>     stepsize when moving left as a fraction of sigma_m.\n");
 fprintf(stderr,"  -r, --right=<right_stepsize>   stepsize when moving right as a fraction of sigma_m.\n");
@@ -82,6 +84,12 @@ fprintf(stderr,"  --lgc_c=<LCG additive term>   Positive integer less than lcg_m
 fprintf(stderr,"  --lgc_m=<LCG modulo term>     Positive integer defining size of the group\n");
 fprintf(stderr,"  --lgc_truncate=<lower bits to truncate>     Positive integer\n");
 fprintf(stderr,"  --lgc_outbits=<Number of bits per output>     Positive integer\n");
+fprintf(stderr,"\nPermuted Congruential Generator model (-m pcg) Options\n\n");
+fprintf(stderr,"  --pcg_state_size=<state size of PCG>  16 ,32 or 64\n");
+fprintf(stderr,"  --pcg_generator=<Generator Algorithm> MCG or LCG\n");
+fprintf(stderr,"  --pcg_of=<Output Function>            XSH_RS or XSH_RR\n");
+fprintf(stderr,"\nXorShift model (-m xorshift) Options\n\n");
+fprintf(stderr,"  --xorshift_size=[state size of xorshift]  32 or 128\n");
 fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
 fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample\n");
@@ -90,13 +98,13 @@ fprintf(stderr,"  -s, --seed                     seed the internal RNG with /dev
 fprintf(stderr,"  -c, --cmax=<generate length>   number of PRNG generates before a reseed\n");
 fprintf(stderr,"  -v, --verbose                  output the parameters\n");
 fprintf(stderr,"\nFile Options\n\n");
-fprintf(stderr,"  -o <output_filename>           output file\n");
-fprintf(stderr,"  -j, --jfile=<j filename>       filename to push source model internal state to\n");
-fprintf(stderr,"  -i, --infile=<input filename>       filename of entropy file for file model\n");
-fprintf(stderr,"  -f, --informat=<hex|binary|01>       Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored\n");
-fprintf(stderr,"  -k, --blocks=<1K_Blocks>       size of output in kilobytes\n");
+fprintf(stderr,"  -o <output_filename>             output file\n");
+fprintf(stderr,"  -j, --jfile=<j filename>         filename to push source model internal state to\n");
+fprintf(stderr,"  -i, --infile=<input filename>    filename of entropy file for file model\n");
+fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored\n");
+fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n");
 fprintf(stderr,"\nOutput Format Options\n\n");
-fprintf(stderr,"  -b, --binary                   output in raw binary format\n");
+fprintf(stderr,"  -b, --binary                output in raw binary format\n");
 fprintf(stderr,"  -w, --width=[1...256]       Byte per line of output\n");
 fprintf(stderr,"\nThe most important option of all\n\n");
 fprintf(stderr,"  -h, --help                     print this help and exit\n");
@@ -217,6 +225,16 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 		result = lcgsource(modelstate, rngstate);
 		return result;
 	}
+	else if (model==MODEL_PCG)
+ 	{
+		result = pcgsource(modelstate, rngstate);
+		return result;
+	}
+	else if (model==MODEL_XORSHIFT)
+ 	{
+		result = xorshiftsource(modelstate, rngstate);
+		return result;
+	}
 	else if (model==MODEL_FILE)
  	{
 		if (rngstate->input_format==INFORMAT_HEX) result = filesourcehex(modelstate,rngstate);
@@ -252,6 +270,14 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	else if (model==MODEL_LCG)
 	{
 		lcginit(modelstate, rngstate);
+	}
+	else if (model==MODEL_PCG)
+	{
+		pcginit(modelstate, rngstate);
+	}
+	else if (model==MODEL_XORSHIFT)
+	{
+		xorshiftinit(modelstate, rngstate);
 	}
 	else if (model==MODEL_FILE)
 	{
@@ -335,8 +361,14 @@ int main(int argc, char** argv)
     modelstate.lcg_truncate = 15; /* Lower bits to truncate */
     modelstate.lcg_x = 0x63a3d28a2682b002ULL; /* Initial state */
     modelstate.lcg_outbits= 33; /* number of bits in output */
-    
+
+	modelstate.pcg_state_size=32;
+	modelstate.pcg_index=0;
+	modelstate.pcg_alg = PCG_LCG;
+	modelstate.pcg_of = XSH_RR;  
+	  
 	rngstate.c_max=511;
+	
 	modelstate.left_stepsize = 0.1;
 	modelstate.right_stepsize = 0.1;
 	modelstate.bias = 0.2;
@@ -346,6 +378,8 @@ int main(int argc, char** argv)
 	modelstate.using_stepnoise = 0;
 	modelstate.stepnoise = 0.0;
 	modelstate.sums_bias = 0.0;
+	
+	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
 	postxor_entropy = 0.0;
 	total_entropy = 0.0;
@@ -385,7 +419,7 @@ int main(int argc, char** argv)
     { "left", required_argument, NULL, 'l' },
     { "right", required_argument, NULL, 'r' },
     { "stepnoise", required_argument, NULL, 0 },
-    { "bias", required_argument, NULL, 'B' },
+    { "bias", required_argument, NULL, 0 },
     { "correlation", required_argument, NULL, 0 },
     { "mean", required_argument, NULL, 0 },
     { "variance", required_argument, NULL, 0 },
@@ -395,6 +429,11 @@ int main(int argc, char** argv)
     { "lcg_m", required_argument, NULL, 0 },
     { "lcg_truncate", required_argument, NULL, 0 },
     { "lcg_outbits", required_argument, NULL, 0 },
+    
+    { "pcg_state_size", required_argument, NULL, 0 },
+    { "pcg_generator", required_argument, NULL, 0 },
+    { "pcg_of", required_argument, NULL, 0 },
+    { "xorshift_size", required_argument, NULL, 0 },
     
     { "output", required_argument, NULL, 'o' },
     { "jfile", required_argument, NULL, 'j' },
@@ -467,6 +506,8 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"biased")==0) model=MODEL_BIASED;
                 else if (strcmp(optarg,"correlated")==0) model=MODEL_CORRELATED;
                 else if (strcmp(optarg,"lcg")==0) model=MODEL_LCG;
+                else if (strcmp(optarg,"pcg")==0) model=MODEL_PCG;
+                else if (strcmp(optarg,"xorshift")==0) model=MODEL_XORSHIFT;
                 else if (strcmp(optarg,"normal")==0) model=MODEL_NORMAL;
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
@@ -479,7 +520,7 @@ int main(int argc, char** argv)
                 
             case 'k':
                 kilobytes = atoi(optarg);
-                fprintf(stderr,"atoi(optarg) = %d,  optarg = %s",kilobytes,optarg); 
+                //fprintf(stderr,"atoi(optarg) = %d,  optarg = %s",kilobytes,optarg); 
                 break;
                 
             case 'w':
@@ -534,6 +575,28 @@ int main(int argc, char** argv)
                 }
                 if( strcmp( "lcg_outbits", longOpts[longIndex].name ) == 0 ) {
                     modelstate.lcg_outbits = atoi(optarg);
+                }
+                if( strcmp( "pcg_state_size", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.pcg_state_size = atoi(optarg);
+                }
+                if( strcmp( "pcg_generator", longOpts[longIndex].name ) == 0 ) {
+                    if (strcmp(optarg, "LCG")==0) {
+                        modelstate.pcg_alg = PCG_LCG;
+                    }
+                    else if (strcmp(optarg, "MCG")==0) {
+                        modelstate.pcg_alg = PCG_MCG;
+                    }
+                }
+                if( strcmp( "pcg_of", longOpts[longIndex].name ) == 0 ) {
+                    if (strcmp(optarg, "XSH_RR")==0) {
+                        modelstate.pcg_of = XSH_RR;
+                    }
+                    else if (strcmp(optarg, "XSH_RS")==0) {
+                        modelstate.pcg_of = XSH_RS;
+                    }
+                }
+                if( strcmp( "xorshift_size", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.xorshift_size = atoi(optarg);
                 }
                 break;
                 
@@ -661,6 +724,19 @@ int main(int argc, char** argv)
 		printf("Error: Width must be from 1 to 256\n");
 		abort = 1;	
 	} 
+	if (model==MODEL_PCG) {
+	    if ((modelstate.pcg_state_size != 16) && (modelstate.pcg_state_size != 32)
+	          && (modelstate.pcg_state_size != 64) && (modelstate.pcg_state_size != 128)) {
+	        printf("Error: A pcg_size must be one of 16, 32, 64 or 128\n");
+	        exit(1);
+	    }    
+	}
+	if (model==MODEL_XORSHIFT) {
+	    if ((modelstate.xorshift_size != 32) &&  (modelstate.xorshift_size != 128)) {
+	        printf("Error: A xorshift_size must be one of 32 or 128\n");
+	        exit(1);
+	    }    
+	}
 	if (model==MODEL_FILE) {
 		if (modelstate.using_infile == 0) {
 			printf("Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
@@ -733,7 +809,28 @@ int main(int argc, char** argv)
 			printf("  c  = %llx\n",modelstate.lcg_c);
 			printf("  m  = %llx\n",modelstate.lcg_m);
 		}
-		
+		if (model == MODEL_PCG)
+		{
+			printf("model=permuted congruential generator\n");
+			printf("  state size = %d\n",modelstate.pcg_state_size);
+			if (modelstate.pcg_alg == PCG_MCG)
+			    printf("  State update algorithm MCG\n");
+			else if (modelstate.pcg_alg == PCG_LCG)
+			    printf("  State update algorithm LCG\n");
+			else
+			    printf("  Unknown State Update Function %d\n", modelstate.pcg_alg);
+			        
+			if (modelstate.pcg_of == XSH_RS)
+			    printf("  Output function XSH_RS\n");
+			else if (modelstate.pcg_of == XSH_RR)
+			    printf("  Output function XSH_RR\n");
+			else
+			    printf("  Unknown Output function %d\n", modelstate.pcg_of);
+		}
+		if (model == MODEL_XORSHIFT)	
+		{
+			printf("model=XORSHIFT\n");
+		}	
 		if (model == MODEL_NORMAL)
 		{
 			printf("model=normal\n");
@@ -883,7 +980,7 @@ int main(int argc, char** argv)
 
 		}
 	}
-	else /* model = sums, pure, biased, correlated, lcg or file*/
+	else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift or file*/
 	{
         lineindex = 0;
 		for (simrun =0; simrun < kilobytes; simrun++)
