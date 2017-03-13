@@ -237,9 +237,13 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	}
 	else if (model==MODEL_FILE)
  	{
-		if (rngstate->input_format==INFORMAT_HEX) result = filesourcehex(modelstate,rngstate);
+		if (rngstate->input_format==INFORMAT_HEX)
+		    result = filesourcehex(modelstate,rngstate);
+		else if (rngstate->input_format==INFORMAT_01)
+		    result = filesource(modelstate,rngstate);
 		else
-			result = filesource(modelstate, rngstate);
+			result = filesourcebinary(modelstate, rngstate);
+		
 		return result;
 	}
 	else return 0;
@@ -308,6 +312,7 @@ int main(int argc, char** argv)
 	int xorbits;
 	int verbose_mode;
 	int kilobytes;
+	int no_k=1;
 	int ofile;
 	char filename[1000];
 	char jfilename[1000];
@@ -348,6 +353,7 @@ int main(int argc, char** argv)
 	modelstate.using_jfile = 0;
 	modelstate.using_infile = 0;
 	input_format = INFORMAT_HEX;
+	rngstate.input_format = INFORMAT_HEX;
 	rngstate.randseed=0;
 	rngstate.rdrand_available=0;
 	rngstate.devurandom_available=0;
@@ -522,6 +528,7 @@ int main(int argc, char** argv)
                 
             case 'k':
                 kilobytes = atoi(optarg);
+                no_k = 0;
                 //fprintf(stderr,"atoi(optarg) = %d,  optarg = %s",kilobytes,optarg); 
                 break;
                 
@@ -810,7 +817,7 @@ int main(int argc, char** argv)
 			printf("  a  = 0x%llx\n",modelstate.lcg_a);
 			printf("  c  = 0x%llx\n",modelstate.lcg_c);
 			printf("  m  = 0x%llx\n",modelstate.lcg_m);
-			printf("  start x = 0x%llx\n",modelstate.lcg_x);
+			printf("  start x = 0x%llx\n",modelstate.lcg_x % modelstate.lcg_m);
 			printf("  Output bit field = %d:%d\n",
 			        (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
 		}
@@ -847,6 +854,14 @@ int main(int argc, char** argv)
 		{
 			printf("model=file\n");
 			printf("  filename  = %s\n",infilename);
+			if (rngstate.input_format == INFORMAT_HEX)
+			    printf("  File input format Hex\n");
+			else if (rngstate.input_format == INFORMAT_BINARY)
+			    printf("  File input format Binary\n");
+			else if (rngstate.input_format == INFORMAT_01 )
+			    printf("  File input format ASCII Binary\n");
+			else
+			    printf("  Unknown input format :%d\n",rngstate.input_format);
 		}
 
 		printf("size = %d kilobytes\n", kilobytes);
@@ -914,7 +929,10 @@ int main(int argc, char** argv)
 	/* open the input file if needed */
 	if (modelstate.using_infile==1)
 	{
-		modelstate.infile =  fopen(infilename, "r");
+	    if (rngstate.input_format==INFORMAT_BINARY)
+	        modelstate.infile = fopen(infilename,"rb");
+	    else
+		    modelstate.infile =  fopen(infilename, "r");
 		if (modelstate.infile == NULL) {
 			perror("failed to open input file for reading");
 			exit(1);
@@ -934,7 +952,7 @@ int main(int argc, char** argv)
 
 	/* entropy = 0x00;*/
 	/* Pull some bits to let it settle. */
-	if (!((model==MODEL_FILE) || (model==MODEL_NORMAL)))
+	if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model=MODEL_PCG)))
 	for(i=0; i<128; i++)
 	{
 		thebit = entropysource(model, &modelstate, &rngstate);
@@ -988,7 +1006,8 @@ int main(int argc, char** argv)
 	else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift or file*/
 	{
         lineindex = 0;
-		for (simrun =0; simrun < kilobytes; simrun++)
+        
+		for (simrun =0; ((simrun < kilobytes) || ((model==MODEL_FILE) && (no_k==1))); simrun++)
 		{
 			for (onek=0;onek<4;onek++)
 			{
@@ -1004,7 +1023,8 @@ int main(int argc, char** argv)
 							for (xoriter=0; xoriter < xorbits; xoriter++)
 							{
 								thebit ^= entropysource(model, &modelstate, &rngstate);
-								if (rngstate.reached_eof == 1) goto reached_eof;
+								if (rngstate.reached_eof == 1)
+								    goto reached_eof;
 								modelstate.lastbit = thebit;
 								prob = modelstate.sums_bias;
 								if (xoriter == 0) pa1 = prob;
@@ -1034,7 +1054,16 @@ int main(int argc, char** argv)
 						else /* no xorring */
 						{
 							thebit = entropysource(model, &modelstate, &rngstate);
-							if (rngstate.reached_eof == 1) goto reached_eof;
+							if (rngstate.reached_eof == 1) {
+							    if ((samplenum > 0) && (samplenum < 256)) {
+							        /*printf("reached EOF with samplenum > 0 = %d\n",samplenum);*/
+							        goto eof_with_partial_block;
+							    }
+							    else {
+							        /*printf("Going to EOF with full block. samplenum = %d\n",samplenum);*/
+							        goto reached_eof;
+							    }
+							}
 							modelstate.lastbit = thebit;
 							prob = modelstate.sums_bias;
 							sums_entropy = bias2entropy(prob);
@@ -1055,15 +1084,16 @@ int main(int argc, char** argv)
 				}
 
 				/* Output the 256 byte block */
+                eof_with_partial_block:
 
 				if (ofile == 1 && binary_mode==1) /* binary to a file */
 				{
-					fwrite(thesample, 256, 1, fp);
+					fwrite(thesample, samplenum, 1, fp);
 				}
 				else if (ofile == 0 && binary_mode == 0) /* hex to stdout */
 				{
 					tempindex = 0;
-                    
+                    /* printf(" Samplenum %d\n",samplenum);*/
                     do {
                         printf("%02X",thesample[tempindex++]);
                         lineindex++;
@@ -1071,7 +1101,8 @@ int main(int argc, char** argv)
                             printf("\n");
                             lineindex = 0;
                         }
-                    } while (tempindex < 256);
+                    } while (tempindex <samplenum);
+                    if (lineindex != 0) printf("\n");
 				}
 				else if (ofile == 1 && binary_mode == 0) /* Hex to a file */
 				{
@@ -1085,15 +1116,17 @@ int main(int argc, char** argv)
                             fprintf(fp,"\n");
                             lineindex = 0;
                         }
-                    } while (tempindex < 256);
+                    } while (tempindex < samplenum);
+                    if (lineindex != 0) printf("\n");
 				}
 				else /* binary to stdout */
 				{
-					fwrite(thesample, 256, 1, stdout);
+					fwrite(thesample, samplenum, 1, stdout);
 				}
 			}
 		}
 		reached_eof:
+		
 		if (verbose_mode ==1)
 		{
 			printf("Total Entropy = %F\n",total_entropy);
@@ -1101,6 +1134,7 @@ int main(int argc, char** argv)
 		}
 	}
 	return 0;
+
 }
 
 

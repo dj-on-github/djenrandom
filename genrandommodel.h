@@ -127,7 +127,7 @@ int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int xorshiftsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int filesource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int filesourcehex(       t_modelstate *modelstate, t_rngstate* rngstate);
-
+int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate);
 double normalsource(t_modelstate *modelstate, t_rngstate* rngstate);
 
 /* initialize_sim(k,v,seed);                                      */

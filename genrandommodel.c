@@ -421,7 +421,7 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
     c = modelstate->lcg_c;
     m = modelstate->lcg_m;
     x = modelstate->lcg_x;
-    printf ("  X = %llx, index=%d\n",x,modelstate->lcg_index);
+    /*printf ("  X = %llx, index=%d\n",x,modelstate->lcg_index);*/
     if ((modelstate->lcg_index)==0) {
         truncate = modelstate->lcg_truncate;
         outbits = modelstate->lcg_outbits;
@@ -871,6 +871,43 @@ int filesourcehex(t_modelstate* modelstate, t_rngstate* rngstate)
 		{
 			rngstate->fileindex = 0;
 		}
+	}
+	return(result);
+}
+
+int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate)
+{
+	int result;
+	int int_c;
+	int doneit;
+	unsigned char myfilechar;
+	doneit = 0;
+
+    rngstate->reached_eof = 0;
+    
+	/* Fetch a byte then shift out the bits */ 
+	if (rngstate -> fileindex == 0)
+	{
+		int_c = fgetc(modelstate->infile);
+		if (int_c == EOF)
+			{
+				rngstate->filechar = 0;
+				doneit = 1;
+				rngstate->reached_eof = 1;
+				return 0;
+			}
+			
+		rngstate->filechar=int_c;
+		rngstate->fileindex=7;
+		result = ((rngstate->filechar & 0x80)>>7) & 0x01;
+	}
+	else
+	{
+		myfilechar = rngstate->filechar;
+		myfilechar = myfilechar << 1;
+		rngstate->filechar = myfilechar;
+		result = ((myfilechar & 0x80)>>7) & 0x01;
+		rngstate->fileindex--;
 	}
 	return(result);
 }
