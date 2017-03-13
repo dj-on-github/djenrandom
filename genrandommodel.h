@@ -46,6 +46,8 @@ typedef struct {
 		unsigned long long lcg_x;
 		unsigned int lcg_truncate;
 		unsigned int lcg_outbits;	
+		unsigned int lcg_index;
+		unsigned long long lcg_output;
 		
 		/* PCG States */
 		unsigned int pcg_state_size;

@@ -416,23 +416,32 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
     unsigned int truncate;
     unsigned int outbits;
     
+    
     a = modelstate->lcg_a;
     c = modelstate->lcg_c;
     m = modelstate->lcg_m;
     x = modelstate->lcg_x;
     
-    /* printf("Start: X = %llx\n",x); */
-    truncate = modelstate->lcg_truncate;
-    outbits = modelstate->lcg_outbits;
+    if ((modelstate->lcg_index)==0) {
+        truncate = modelstate->lcg_truncate;
+        outbits = modelstate->lcg_outbits;
     
-    x = (a*x + c) % m;  /* Compute next state */
+        x = (a*x + c) % m;  /* Compute next state */
     
-    modelstate->lcg_x = x;
+        modelstate->lcg_x = x;
     
-    /* Select the subset of bits to output */
-    x = (x >> truncate);
-    x = x & ((0x01ULL << outbits)-1);
-    
+        /* Select the subset of bits to output */
+        x = (x >> truncate);
+        modelstate->lcg_output = x & ((0x01ULL << outbits)-1);
+        
+        modelstate->lcg_index = outbits-1;
+        return (modelstate->lcg_output & 1);
+    }
+    else {
+        modelstate->lcg_index -= 1;
+        modelstate->lcg_output = modelstate->lcg_output >> 1;
+        return (modelstate->lcg_output & 1);
+    }
     /* printf("End:  x = %llx, a = %llx, c = %llx, m = %llx\n",x,a,c,m); */
     return (int)x;
 }
@@ -977,14 +986,11 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 
 void lcginit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
-    unsigned long long state;
-    
-    modelstate->lcg_mask = (1 << (modelstate->lcg_m)) -1;
-    
 	if (rngstate->randseed==1)
 	{
-	    nondeterministic_bytes(sizeof(unsigned long long), &state, rngstate);
-		modelstate->lcg_x = (modelstate->lcg_x ^ state) & (modelstate->lcg_mask);
+	    nondeterministic_bytes(sizeof(unsigned long long), &(modelstate->lcg_x), rngstate);
+	    modelstate->lcg_x = modelstate->lcg_x % modelstate->lcg_m;
+		modelstate->lcg_index = 0;
 	}
 }
 

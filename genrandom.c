@@ -79,11 +79,11 @@ fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
 fprintf(stderr,"  --variance=<normal variance>   variance of the normally distributed data\n");
 fprintf(stderr,"\nLinear Congruential Generator model (-m lcg) Options\n\n");
-fprintf(stderr,"  --lgc_a=<LCG multipler term>  Positive integer less than lcg_m\n");
-fprintf(stderr,"  --lgc_c=<LCG additive term>   Positive integer less than lcg_m\n");
-fprintf(stderr,"  --lgc_m=<LCG modulo term>     Positive integer defining size of the group\n");
-fprintf(stderr,"  --lgc_truncate=<lower bits to truncate>     Positive integer\n");
-fprintf(stderr,"  --lgc_outbits=<Number of bits per output>     Positive integer\n");
+fprintf(stderr,"  --lcg_a=<LCG multipler term>  Positive integer less than lcg_m\n");
+fprintf(stderr,"  --lcg_c=<LCG additive term>   Positive integer less than lcg_m\n");
+fprintf(stderr,"  --lcg_m=<LCG modulo term>     Positive integer defining size of the group\n");
+fprintf(stderr,"  --lcg_truncate=<lower bits to truncate>     Positive integer\n");
+fprintf(stderr,"  --lcg_outbits=<Number of bits per output>     Positive integer\n");
 fprintf(stderr,"\nPermuted Congruential Generator model (-m pcg) Options\n\n");
 fprintf(stderr,"  --pcg_state_size=<state size of PCG>  16 ,32 or 64\n");
 fprintf(stderr,"  --pcg_generator=<Generator Algorithm> MCG or LCG\n");
@@ -433,6 +433,7 @@ int main(int argc, char** argv)
     { "pcg_state_size", required_argument, NULL, 0 },
     { "pcg_generator", required_argument, NULL, 0 },
     { "pcg_of", required_argument, NULL, 0 },
+    
     { "xorshift_size", required_argument, NULL, 0 },
     
     { "output", required_argument, NULL, 'o' },
@@ -805,9 +806,11 @@ int main(int argc, char** argv)
 		if (model == MODEL_LCG)
 		{
 			printf("model=linear congruential generator\n");
-			printf("  a  = %llx\n",modelstate.lcg_a);
-			printf("  c  = %llx\n",modelstate.lcg_c);
-			printf("  m  = %llx\n",modelstate.lcg_m);
+			printf("  a  = 0x%llx\n",modelstate.lcg_a);
+			printf("  c  = 0x%llx\n",modelstate.lcg_c);
+			printf("  m  = 0x%llx\n",modelstate.lcg_m);
+			printf("  Output bit field = %d:%d\n",
+			        (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
 		}
 		if (model == MODEL_PCG)
 		{
