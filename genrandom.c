@@ -361,6 +361,7 @@ int main(int argc, char** argv)
     modelstate.lcg_truncate = 15; /* Lower bits to truncate */
     modelstate.lcg_x = 0x63a3d28a2682b002ULL; /* Initial state */
     modelstate.lcg_outbits= 33; /* number of bits in output */
+    modelstate.lcg_index = 0;
 
 	modelstate.pcg_state_size=32;
 	modelstate.pcg_index=0;
@@ -809,6 +810,7 @@ int main(int argc, char** argv)
 			printf("  a  = 0x%llx\n",modelstate.lcg_a);
 			printf("  c  = 0x%llx\n",modelstate.lcg_c);
 			printf("  m  = 0x%llx\n",modelstate.lcg_m);
+			printf("  start x = 0x%llx\n",modelstate.lcg_x);
 			printf("  Output bit field = %d:%d\n",
 			        (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
 		}

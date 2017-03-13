@@ -421,7 +421,7 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
     c = modelstate->lcg_c;
     m = modelstate->lcg_m;
     x = modelstate->lcg_x;
-    
+    printf ("  X = %llx, index=%d\n",x,modelstate->lcg_index);
     if ((modelstate->lcg_index)==0) {
         truncate = modelstate->lcg_truncate;
         outbits = modelstate->lcg_outbits;
@@ -986,12 +986,17 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 
 void lcginit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
-	if (rngstate->randseed==1)
+	if (rngstate->randseed==0) {
+	    modelstate->lcg_x = 0x63a3d28a2682b002ULL % modelstate->lcg_m;
+	    modelstate->lcg_index = 0;
+	}
+	else
 	{
 	    nondeterministic_bytes(sizeof(unsigned long long), &(modelstate->lcg_x), rngstate);
 	    modelstate->lcg_x = modelstate->lcg_x % modelstate->lcg_m;
 		modelstate->lcg_index = 0;
 	}
+	
 }
 
 void pcginit(t_modelstate *modelstate, t_rngstate *rngstate)
