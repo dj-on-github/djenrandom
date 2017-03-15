@@ -952,7 +952,7 @@ int main(int argc, char** argv)
 
 	/* entropy = 0x00;*/
 	/* Pull some bits to let it settle. */
-	if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model=MODEL_PCG)))
+	if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
 	for(i=0; i<128; i++)
 	{
 		thebit = entropysource(model, &modelstate, &rngstate);
