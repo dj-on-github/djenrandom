@@ -1,6 +1,6 @@
 
 /*
-    genrandom - A utility to generate random numbers.
+    djrandom - A utility to generate random numbers.
     
     Copyright (C) 2017  David Johnston
 
@@ -30,7 +30,7 @@
 #include <stdint.h>
 
 #include "aes128k128d.h"
-#include "genrandommodel.h"
+#include "djrandommodel.h"
 #include "rdrand.h"
 
 #define RIGHT_VARIANCE 1
@@ -879,9 +879,9 @@ int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate)
 {
 	int result;
 	int int_c;
-	int doneit;
+	/*int doneit;*/
 	unsigned char myfilechar;
-	doneit = 0;
+	/*doneit = 0;*/
 
     rngstate->reached_eof = 0;
     
@@ -892,7 +892,7 @@ int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate)
 		if (int_c == EOF)
 			{
 				rngstate->filechar = 0;
-				doneit = 1;
+				/*doneit = 1;*/
 				rngstate->reached_eof = 1;
 				return 0;
 			}

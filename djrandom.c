@@ -1,6 +1,6 @@
 
 /*
-    genrandom - A utility to generate random numbers.
+    djrandom - A utility to generate random numbers.
     
     Copyright (C) 2017  David Johnston
 
@@ -33,7 +33,7 @@
 #include <stdint.h>
 
 #include "aes128k128d.h"
-#include "genrandommodel.h"
+#include "djrandommodel.h"
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
@@ -54,7 +54,7 @@
 #define INFORMAT_BINARY 2
 
 void display_usage() {
-fprintf(stderr,"Usage: genrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
+fprintf(stderr,"Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
 fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");

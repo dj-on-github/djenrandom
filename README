@@ -1,5 +1,5 @@
-$ ./genrandom -h
-Usage: genrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
+$ ./djrandom -h
+Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
        [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
