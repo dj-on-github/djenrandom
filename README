@@ -1,4 +1,7 @@
-$ ./djrandom -h
+Note that this used to be called genrandom, until I found there was already a fairly useless standard linux utility called genrandom.
+So djenrandom became the name.
+
+$ ./djenrandom -h
 Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
        [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
