@@ -30,7 +30,7 @@
 #include <stdint.h>
 
 #include "aes128k128d.h"
-#include "djrandommodel.h"
+#include "djenrandommodel.h"
 #include "rdrand.h"
 
 #define RIGHT_VARIANCE 1

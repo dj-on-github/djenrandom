@@ -33,7 +33,7 @@
 #include <stdint.h>
 
 #include "aes128k128d.h"
-#include "djrandommodel.h"
+#include "djenrandommodel.h"
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
