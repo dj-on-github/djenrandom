@@ -18,6 +18,9 @@ smoothmodel.o: djenrandommodel.c aes128k128d.h
 aes128k128d.o: aes128k128d.c aes128k128d.h
 	$(CC) -c $(CFLAGS) -o aes128k128d.o aes128k128d.c
 
+aesni128k128d.o: aes128k128d.c aes128k128d.h
+	$(CC) -c $(CFLAGS) -o aes128k128d.o aes128k128d.c
+    
 install:
 	cp djenrandom /usr/local/bin
 

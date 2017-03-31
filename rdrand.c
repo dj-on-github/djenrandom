@@ -159,6 +159,23 @@ int check_rdseed() {
    return 0;
 }
 
+int check_aesni()
+{
+    CPUIDinfo info;
+    get_cpuid(&info,1,0);
+    
+    if ((info.ECX & 0x02000000)==0x02000000) return 1;
+    return 0;   
+}
+
+int aesni_check_support()
+{
+	if ((check_is_intel()==1) || (check_is_amd()==1)){
+        if (check_aesni()==1) return 1;
+	}
+	return 0;
+}
+
 int rdrand_check_support()
 {
 	if ((check_is_intel()==1) || (check_is_amd()==1)){

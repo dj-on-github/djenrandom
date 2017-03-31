@@ -53,6 +53,8 @@
 #define INFORMAT_HEX 1
 #define INFORMAT_BINARY 2
 
+int aesni_supported;
+
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
 fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]\n"); 
@@ -360,7 +362,8 @@ int main(int argc, char** argv)
 	using_xor_range=0;
 	xmin=0;
 	xmax=0;
-	
+	aesni_supported = 0;
+    
 	modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
     modelstate.lcg_c = 11ULL;
     modelstate.lcg_m = 0x0001000000000000ULL; /* 2**48 */
@@ -413,13 +416,14 @@ int main(int argc, char** argv)
     
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:o:j:i:f:k:w:bxsvh";
+    char optString[] = "c:m:l:r:B:o:j:i:f:k:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
     { "seed", no_argument, NULL, 's' },
+    { "noaesni", no_argument, NULL, 'n' },
     { "cmax", required_argument, NULL, 'c' },
     { "model", required_argument, NULL, 'm' },
     { "verbose", required_argument, NULL, 'v' },
@@ -467,6 +471,10 @@ int main(int argc, char** argv)
                 
             case 's':
                 rngstate.randseed = 1;
+                break;
+                
+            case 'n':
+                aesni_supported = 0;
                 break;
             
             case 'v':
@@ -622,7 +630,7 @@ int main(int argc, char** argv)
         opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
     } // end while
     
-
+    aesni_supported = int aesni_check_support();
     
     /* Sort xmin and xmax */ 
 	if ((gotxmin==1) && (gotxmax==1))
