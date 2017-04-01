@@ -74,6 +74,8 @@ void add_round_key( unsigned char *shiftrow_in,
                     unsigned char *block_in,
                     int round,
                     unsigned char *out);
+void aesse128k128d(unsigned char *key, unsigned char *data, unsigned char *ciphertext);
+void aesni128k128d(unsigned char *key, const unsigned char *data, const unsigned char *ciphertext);
 void aes128k128d(unsigned char *key, unsigned char *data, unsigned char *ciphertext);
 
 /****************************************/
@@ -351,7 +353,7 @@ __m128i  aes128_keyexpand(__m128i key)
     return _mm_xor_si128(key, _mm_slli_si128(key, 4));
 }
 
-void  aesni256k128d(unsigned char *key, const unsigned char *plaintext, const unsigned char *ciphertext) 
+void  aesni128k128d(unsigned char *key, const unsigned char *plaintext, const unsigned char *ciphertext) 
 {
             __m128i rk[15];
             __m128i m;
@@ -407,8 +409,14 @@ void  aesni256k128d(unsigned char *key, const unsigned char *plaintext, const un
 /* Choose between the two */
 
 void aes128k128d(unsigned char *key, unsigned char *data, unsigned char *ciphertext) {
-    if (aesni_supported==1) aesni256k128d(key, plaintext, ciphertext);
-    else aessw256k128d(key, plaintext, ciphertext);
+    if (aesni_supported==1) {
+        aesni128k128d(key, data, ciphertext);
+        /* printf("using HW AES\n");*/
+    }
+    else {
+        aessw128k128d(key, data, ciphertext);
+        /*printf("using SW AES\n");*/
+    }
 }
 
 

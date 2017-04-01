@@ -48,3 +48,6 @@ extern int rdseed_check_support();
 extern int rdrand_get_n_qints_retry(unsigned int n, unsigned int retry_limit, unsigned long long int *dest);
 extern int rdseed_get_n_qints_retry(unsigned int n, unsigned int retry_limit, unsigned long long int *dest);
 
+    
+extern int aesni_check_support();
+

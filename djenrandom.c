@@ -23,7 +23,7 @@
     Contact. David Johnston dj@deadhat.com
 */
 /* make isnan() visible */
-#define _BSD_SOURCE 
+/*#define _BSD_SOURCE */
 
 #include <stdio.h>
 #include <string.h>
@@ -324,7 +324,6 @@ int main(int argc, char** argv)
 	int xmin;
 	int xmax;
 	
-    char informat[25];
 	int input_format;
 	int linewidth;
     int lineindex;
@@ -399,8 +398,9 @@ int main(int argc, char** argv)
     filename[0] = (char)0;
 	jfilename[0] = (char)0;
 	infilename[0] = (char)0;
-    informat[0] = (char)0;
     
+    aesni_supported = aesni_check_support();
+
 	int tempa;
 	int tempb;
 	int xorselector;
@@ -630,8 +630,6 @@ int main(int argc, char** argv)
         opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
     } // end while
     
-    aesni_supported = int aesni_check_support();
-    
     /* Sort xmin and xmax */ 
 	if ((gotxmin==1) && (gotxmax==1))
 	{
@@ -784,6 +782,11 @@ int main(int argc, char** argv)
 	/* Print out the job parameters */
 	if (verbose_mode==1)
 	{
+        if (aesni_check_support() == 1)
+            printf("AESNI Supported in instruction set\n");
+        else
+            printf("AESNI Not supported in instruction set\n");
+ 
 		if (binary_mode == 0)
 			printf("Format=Hex\n");
 		else

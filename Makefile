@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I/usr/local/include -m64 -g -Wall
+CFLAGS = -I/usr/local/include -m64 -g -Wall -maes
 LDFLAGS = -L/usr/local/lib 
 LDLIBS = -lm
 
@@ -14,9 +14,6 @@ djenrandom.o: djenrandom.c aes128k128d.h djenrandommodel.h
 
 smoothmodel.o: djenrandommodel.c aes128k128d.h
 	$(CC) -c $(CFLAGS) -o djenrandommodel.o djenrandommodel.c
-
-aes128k128d.o: aes128k128d.c aes128k128d.h
-	$(CC) -c $(CFLAGS) -o aes128k128d.o aes128k128d.c
 
 aesni128k128d.o: aes128k128d.c aes128k128d.h
 	$(CC) -c $(CFLAGS) -o aes128k128d.o aes128k128d.c
