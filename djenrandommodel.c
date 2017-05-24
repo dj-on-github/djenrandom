@@ -334,7 +334,7 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
 
         entropy = -log(maxp)/log(2);
 
-		fprintf(modelstate->jfile,"%d, %0.6f\n",result,entropy);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
 	}
 
 	return(result);
@@ -344,6 +344,7 @@ int puresource(t_modelstate* modelstate, t_rngstate* rngstate)
 {
 	int result;
 	unsigned long int theint;
+    double entropy;
 
 	/* get a uniform Random number.              */
 	/* put the random bits into a long int        */
@@ -352,6 +353,12 @@ int puresource(t_modelstate* modelstate, t_rngstate* rngstate)
 
 	if (theint > 32767) result = 1;
 	else result = 0;
+
+	if (modelstate->using_jfile ==1)
+	{
+        entropy = 1.0;
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
+	}
 
 	return(result);
 }
@@ -362,6 +369,8 @@ int biasedsource(t_modelstate* modelstate, t_rngstate* rngstate)
 	double dthreshold;
 	int threshold;
 	unsigned long int theint;
+    double maxp;
+    double entropy;
 
 	theint = getrand16(rngstate);
 
@@ -372,7 +381,11 @@ int biasedsource(t_modelstate* modelstate, t_rngstate* rngstate)
 
 	if (modelstate->using_jfile ==1)
 	{
-		fprintf(modelstate->jfile,"%0.6f\n",modelstate->bias);
+        if (modelstate->bias > 0.5) maxp = modelstate->bias;
+        else maxp = 1.0 - modelstate->bias;
+
+        entropy = -log(maxp)/log(2);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
 	}
 	return(result);
 
@@ -385,6 +398,8 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
 	int threshold;
 	unsigned long int theint;
 	double bias;
+    double maxp;
+    double entropy;
 
 	/* get a uniform Random number.              */
 
@@ -407,10 +422,14 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
 	}
 
 	modelstate->sums_bias = bias;
-
+    
 	if (modelstate->using_jfile ==1)
 	{
-		fprintf(modelstate->jfile,"%0.6f\n",bias);
+        if (bias > 0.5) maxp = bias;
+        else maxp = 1.0 - bias;
+
+        entropy = -log(maxp)/log(2);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
 	}
 	return(result);
 }
