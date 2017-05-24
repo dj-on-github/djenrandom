@@ -346,19 +346,61 @@ void aessw128k128d(unsigned char *key, unsigned char *data, unsigned char *ciphe
 
 /* AESNI version using intrinsics library */
 
-__m128i  aes128_keyexpand(__m128i key) 
+__m128i  aes128_keyexpand(__m128i key, __m128i keygened) 
 {
     key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
     key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
-    return _mm_xor_si128(key, _mm_slli_si128(key, 4));
+    key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
+    keygened = _mm_shuffle_epi32(keygened, _MM_SHUFFLE(3,3,3,3));
+    return _mm_xor_si128(key, keygened);
 }
 
+#define KEYEXP(K, I) aes128_keyexpand(K, _mm_aeskeygenassist_si128(K, I))
+
 void  aesni128k128d(unsigned char *key, const unsigned char *plaintext, const unsigned char *ciphertext) 
+{
+            __m128i rk[11];
+            __m128i m;
+
+            /* 128 bit Key Expansion */
+            rk[0] = _mm_loadu_si128((__m128i*) key); 
+            rk[1] = KEYEXP(rk[0], 0x01);
+            rk[2] = KEYEXP(rk[1], 0x02);
+            rk[3] = KEYEXP(rk[2], 0x04);
+            rk[4] = KEYEXP(rk[3], 0x08);
+            rk[5] = KEYEXP(rk[4], 0x10);
+            rk[6] = KEYEXP(rk[5], 0x20);
+            rk[7] = KEYEXP(rk[6], 0x40);
+            rk[8] = KEYEXP(rk[7], 0x80);
+            rk[9] = KEYEXP(rk[8], 0x1b);
+            rk[10]= KEYEXP(rk[9], 0x36);
+             
+            // Do the encrypt
+
+            m = _mm_loadu_si128((const __m128i*) plaintext);
+
+            /* first 9 rounds */
+            m = _mm_xor_si128(m, rk[0]);
+            m = _mm_aesenc_si128(m, rk[1]);
+            m = _mm_aesenc_si128(m, rk[2]);
+            m = _mm_aesenc_si128(m, rk[3]);
+            m = _mm_aesenc_si128(m, rk[4]);
+            m = _mm_aesenc_si128(m, rk[5]);
+            m = _mm_aesenc_si128(m, rk[6]);
+            m = _mm_aesenc_si128(m, rk[7]);
+            m = _mm_aesenc_si128(m, rk[8]);
+            m = _mm_aesenc_si128(m, rk[9]);
+            /* Last round */
+            m = _mm_aesenclast_si128(m, rk[10]);
+            _mm_storeu_si128((__m128i*) ciphertext, m);
+}
+/*
+void  aesni256k128d(unsigned char *key, const unsigned char *plaintext, const unsigned char *ciphertext) 
 {
             __m128i rk[15];
             __m128i m;
 
-            /* 256 bit Key Expansion */
+             256 bit Key Expansion 
             
             rk[0] = _mm_loadu_si128((const __m128i*) key);
             rk[1] = _mm_loadu_si128((const __m128i*) (key+16));
@@ -383,11 +425,11 @@ void  aesni128k128d(unsigned char *key, const unsigned char *plaintext, const un
             
             rk[14] = _mm_xor_si128(aes128_keyexpand(rk[12]), _mm_shuffle_epi32(_mm_aeskeygenassist_si128(rk[13], 0x40), 0xff));
 
-            // Do the encrypt
+             Do the encrypt
 
             m = _mm_loadu_si128((const __m128i*) plaintext);
 
-            /* first 9 rounds */
+             first 9 rounds 
             m = _mm_xor_si128(m, rk[0]);
             m = _mm_aesenc_si128(m, rk[1]);
             m = _mm_aesenc_si128(m, rk[2]);
@@ -405,7 +447,7 @@ void  aesni128k128d(unsigned char *key, const unsigned char *plaintext, const un
             m = _mm_aesenclast_si128(m, rk[14]);
             _mm_storeu_si128((__m128i*) ciphertext, m);
 }
-
+*/
 /* Choose between the two */
 
 void aes128k128d(unsigned char *key, unsigned char *data, unsigned char *ciphertext) {

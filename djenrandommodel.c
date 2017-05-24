@@ -72,13 +72,14 @@ int getrand16(t_rngstate* rngstate)
 	unsigned char temprand[16];
 	unsigned char temprand2[16];
 	
+	/* CTR variables for random number gen */
+	unsigned char out[16];
 	unsigned char out2[16];
+
 	int i;
 	int j;
 	unsigned long int theint;
 
-	/* CTR variables for random number gen */
-	unsigned char out[16];
 	
 	/* Make a uniform Random number.              */
 	/* put the random bits into a long int        */
@@ -260,6 +261,8 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
 	double pmfc;
 	double randomnumber;
 	int result;
+    double maxp;
+    double entropy;
 
 	/* vars for converting from random bit to a float */
 	unsigned long int theint;
@@ -326,7 +329,12 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
 
 	if (modelstate->using_jfile ==1)
 	{
-		fprintf(modelstate->jfile,"%0.6f\n",tee);
+        if (pmfc > 0.5) maxp = pmfc;
+        else maxp = 1.0-pmfc;
+
+        entropy = -log(maxp)/log(2);
+
+		fprintf(modelstate->jfile,"%d, %0.6f\n",result,entropy);
 	}
 
 	return(result);

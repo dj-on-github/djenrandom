@@ -22,8 +22,6 @@
     
     Contact. David Johnston dj@deadhat.com
 */
-/* make isnan() visible */
-/*#define _BSD_SOURCE */
 
 #include <stdio.h>
 #include <string.h>
@@ -56,7 +54,7 @@
 int aesni_supported;
 
 void display_usage() {
-fprintf(stderr,"Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
+fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
 fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
@@ -97,6 +95,7 @@ fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together 
 fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample\n");
 fprintf(stderr,"  -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be chosen at random per sample\n");
 fprintf(stderr,"  -s, --seed                     seed the internal RNG with /dev/random\n");
+fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
 fprintf(stderr,"  -c, --cmax=<generate length>   number of PRNG generates before a reseed\n");
 fprintf(stderr,"  -v, --verbose                  output the parameters\n");
 fprintf(stderr,"\nFile Options\n\n");
