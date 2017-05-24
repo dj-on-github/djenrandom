@@ -1,15 +1,4 @@
-/****************************************************************/
-/* 802.11 AES Block Cipher                                      */
-/* Implements AES256. I.E. 256 bit key with 128 bit data.       */
-/*                                                              */
-/* Originally (c) 2002, David Johnston                          */
-/* This code has been placed in the public domain by the author */
-/* Author: David Johnston                                       */
-/* Email (home) : dj@deadhat.com                                */
-/* Email (general) : david.johnston@ieee.org                    */
-/* Email (work) : dj.johnston@intel.com                         */
-/****************************************************************/
- 
+
 #include <wmmintrin.h>
 
 __m128i  aes128_keyexpand(__m128i key) 
