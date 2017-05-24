@@ -1111,7 +1111,6 @@ int main(int argc, char** argv)
 
 				/* Output the 256 byte block */
                 eof_with_partial_block:
-                fprintf(stderr,"BITS_PER_BYTE = %d\n", bits_per_byte);
 				if (ofile == 1 && binary_mode==1) /* binary to a file */
 				{
                     if (bits_per_byte == 8) {
