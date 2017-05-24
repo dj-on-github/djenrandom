@@ -60,6 +60,7 @@ fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bi
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
+fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
 fprintf(stderr,"\n");
 fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
@@ -106,6 +107,7 @@ fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file. hex=Asc
 fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n");
 fprintf(stderr,"\nOutput Format Options\n\n");
 fprintf(stderr,"  -b, --binary                output in raw binary format\n");
+fprintf(stderr,"  --bpb                       Number of bits per byte to output in binary output mode. Default 8.\n");
 fprintf(stderr,"  -w, --width=[1...256]       Byte per line of output\n");
 fprintf(stderr,"\nThe most important option of all\n\n");
 fprintf(stderr,"  -h, --help                     print this help and exit\n");
@@ -301,6 +303,7 @@ int main(int argc, char** argv)
     int opt;
 	int i;
 	int j;
+    unsigned char abyte;
 	int onek;
 	int tempindex;
 	int xoriter;
@@ -309,6 +312,7 @@ int main(int argc, char** argv)
 	int thebit;
 	unsigned char thebyte;
 	int binary_mode;
+    int bits_per_byte;
 	int xormode;
 	int xorbits;
 	int verbose_mode;
@@ -337,6 +341,7 @@ int main(int argc, char** argv)
 	int samplenum;
 	int simrun;
 	unsigned char thesample[256];
+	unsigned char thebpbsample[2048];
 	double floatingpointsamples[256];
 	t_rngstate rngstate;
 	t_modelstate modelstate;
@@ -344,6 +349,7 @@ int main(int argc, char** argv)
 
 	/* Defaults */
 	binary_mode = 0; /* binary when 1, hex when 0 */
+    bits_per_byte = 8; /* default 8 bits per byte */
 	ofile = 0;       /* use stdout instead of outputfile*/
 	model = MODEL_PURE;
 	xormode = 0;  /* do xor when 1, else don't do xor */
@@ -418,6 +424,7 @@ int main(int argc, char** argv)
     char optString[] = "c:m:l:r:B:o:j:i:f:k:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
+    { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
@@ -553,6 +560,9 @@ int main(int argc, char** argv)
                 break;                
                
             case 0:     /* long option without a short arg */
+                if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
+                    bits_per_byte = atoi(optarg);
+                }
                 if( strcmp( "xmin", longOpts[longIndex].name ) == 0 ) {
                     gotxmin=1;
                     tempa = atoi(optarg);
@@ -678,6 +688,12 @@ int main(int argc, char** argv)
 			abort = 1;
 		}
 
+	}
+
+	if ((bits_per_byte != 1) && (bits_per_byte != 2) && (bits_per_byte != 4) && (bits_per_byte != 8))
+	{
+        	printf("Error: -b -bpb = %d. Bits per byte must be 1, 2, 4 or 8.\n",bits_per_byte);
+        	abort=1;
 	}
 	if (rngstate.c_max < 1)
 	{
@@ -1095,10 +1111,41 @@ int main(int argc, char** argv)
 
 				/* Output the 256 byte block */
                 eof_with_partial_block:
-
+                fprintf(stderr,"BITS_PER_BYTE = %d\n", bits_per_byte);
 				if (ofile == 1 && binary_mode==1) /* binary to a file */
 				{
-					fwrite(thesample, samplenum, 1, fp);
+                    if (bits_per_byte == 8) {
+					    fwrite(thesample, samplenum, 1, fp);
+                    } else if (bits_per_byte == 4) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*2] = abyte & 0x0f;
+                            thebpbsample[(i*2)+1] = (abyte >> 4) & 0x0f;
+                        }
+                        fwrite(thebpbsample, (samplenum * 2) ,1, fp);
+                    } else if (bits_per_byte == 2) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*4] = abyte & 0x03;
+                            thebpbsample[(i*4)+1] = (abyte >> 2) & 0x03;
+                            thebpbsample[(i*4)+2] = (abyte >> 4) & 0x03;
+                            thebpbsample[(i*4)+3] = (abyte >> 6) & 0x03;
+                        }
+                        fwrite(thebpbsample, (samplenum * 4) ,1, fp);
+                    } else if (bits_per_byte == 1) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*8] = abyte & 0x01;
+                            thebpbsample[(i*8)+1] = (abyte >> 1) & 0x01;
+                            thebpbsample[(i*8)+2] = (abyte >> 2) & 0x01;
+                            thebpbsample[(i*8)+3] = (abyte >> 3) & 0x01;
+                            thebpbsample[(i*8)+4] = (abyte >> 4) & 0x01;
+                            thebpbsample[(i*8)+5] = (abyte >> 5) & 0x01;
+                            thebpbsample[(i*8)+6] = (abyte >> 6) & 0x01;
+                            thebpbsample[(i*8)+7] = (abyte >> 7) & 0x01;
+                        }
+                        fwrite(thebpbsample, (samplenum * 8) ,1, fp);
+                    }
 				}
 				else if (ofile == 0 && binary_mode == 0) /* hex to stdout */
 				{
@@ -1131,7 +1178,39 @@ int main(int argc, char** argv)
 				}
 				else /* binary to stdout */
 				{
-					fwrite(thesample, samplenum, 1, stdout);
+                    if (bits_per_byte == 8) {
+					    fwrite(thesample, samplenum, 1, stdout);
+                    } else if (bits_per_byte == 4) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*2] = abyte & 0x0f;
+                            thebpbsample[(i*2)+1] = (abyte >> 4) & 0x0f;
+                        }
+                        fwrite(thebpbsample, (samplenum * 2) ,1, stdout);
+                    } else if (bits_per_byte == 2) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*4] = abyte & 0x03;
+                            thebpbsample[(i*4)+1] = (abyte >> 2) & 0x03;
+                            thebpbsample[(i*4)+2] = (abyte >> 4) & 0x03;
+                            thebpbsample[(i*4)+3] = (abyte >> 6) & 0x03;
+                        }
+                        fwrite(thebpbsample, (samplenum * 4) ,1, stdout);
+                    } else if (bits_per_byte == 1) {
+                        for (i=0;i<samplenum;i++) {
+                            abyte = thesample[i];
+                            thebpbsample[i*8] = abyte & 0x01;
+                            thebpbsample[(i*8)+1] = (abyte >> 1) & 0x01;
+                            thebpbsample[(i*8)+2] = (abyte >> 2) & 0x01;
+                            thebpbsample[(i*8)+3] = (abyte >> 3) & 0x01;
+                            thebpbsample[(i*8)+4] = (abyte >> 4) & 0x01;
+                            thebpbsample[(i*8)+5] = (abyte >> 5) & 0x01;
+                            thebpbsample[(i*8)+6] = (abyte >> 6) & 0x01;
+                            thebpbsample[(i*8)+7] = (abyte >> 7) & 0x01;
+                        }
+                        fwrite(thebpbsample, (samplenum * 8) ,1, stdout);
+                    }
+					/*fwrite(thesample, samplenum, 1, stdout);*/
 				}
 			}
 		}
