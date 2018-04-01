@@ -7,13 +7,14 @@ Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
        [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]
+       [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]
        [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]
        [-k <1K_Blocks>] [-w [1..256]]
 
 Generate random bits with configurable non-uniformities.
   Author: David Johnston, dj@deadhat.com
 
-  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>   Select random source model
+  -m, --model=<pure(default)|sums|biased|correlated|sinbias|lcg|pcg|xorshift|normal|file>   Select random source model
 
 Step Update Metastable Source model (-m sums) Options
 
@@ -28,6 +29,12 @@ Biased model (-m biased) Options
 Correlated model (-m correlated) Options
 
   --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation model
+
+Sinusoidally Varying Bias model (-m sinbias) Options
+
+  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model
+  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0. Only for sinbias model
+  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model
 
 Normal model (-m normal) Options
 

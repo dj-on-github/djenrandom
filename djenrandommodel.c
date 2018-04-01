@@ -434,6 +434,56 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
 	return(result);
 }
 
+int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
+{
+	int result;
+	double dthreshold;
+	int threshold;
+	unsigned long int theint;
+	double bias;
+    double period;
+    double amplitude;
+    double offset;
+    int t;
+    double maxp;
+    double entropy;
+
+	/* get a uniform Random number.              */
+
+	theint = getrand16(rngstate);
+
+    period = modelstate->sinbias_period;
+    amplitude = modelstate->sinbias_amplitude;
+    offset = modelstate->sinbias_offset;
+    t = modelstate->time;
+    
+    bias = offset + (amplitude*(sin(2.0*M_PI*t/period)));
+    
+    if (bias < 0.0) bias =0.0;
+    if (bias > 1.0) bias = 1.0;
+    
+	dthreshold = 65536.0*bias;
+	threshold = (int)dthreshold;
+
+
+	if (theint < threshold) result = 1;
+	else result = 0;
+
+    modelstate->sinbias_bias = bias;
+
+	if (modelstate->using_jfile ==1)
+	{
+        if (bias > 0.5) maxp = bias;
+        else maxp = 1.0 - bias;
+
+        entropy = -log(maxp)/log(2);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
+	}
+	
+	modelstate->time = t+1;
+	return(result);
+}
+
 int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
 {
     unsigned long long a;
@@ -1047,6 +1097,25 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 	}
 
 }
+
+void sinbiasinit(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+	unsigned char out[16];
+
+	smoothinit(modelstate, rngstate);
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+		/*fread(rngstate->rngbits,16,1,rngstate->devrandom);*/
+	}
+	else
+	{
+		aes128k128d(rngstate->k,rngstate->v,out);
+		aes128k128d(out,rngstate->k,rngstate->rngbits);
+	}
+
+    modelstate->time = 0;
+} 
 
 void lcginit(t_modelstate *modelstate, t_rngstate *rngstate)
 {

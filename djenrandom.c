@@ -46,6 +46,7 @@
 #define MODEL_LCG 6
 #define MODEL_PCG 7
 #define MODEL_XORSHIFT 8
+#define MODEL_SINBIAS 9
 
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
@@ -55,10 +56,11 @@ int aesni_supported;
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
-fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]\n"); 
+fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
+fprintf(stderr,"       [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
@@ -68,29 +70,41 @@ fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
 fprintf(stderr,"\n");
 
 fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>   Select random source model\n");
+
 fprintf(stderr,"\nStep Update Metastable Source model (-m sums) Options\n\n");
 fprintf(stderr,"  -l, --left=<left_stepsize>     stepsize when moving left as a fraction of sigma_m.\n");
 fprintf(stderr,"  -r, --right=<right_stepsize>   stepsize when moving right as a fraction of sigma_m.\n");
 fprintf(stderr,"  --stepnoise=<noise on step>    variance of the noise on stepsize. e.g. 0.00001.\n");
+
 fprintf(stderr,"\nBiased model (-m biased) Options\n\n");
 fprintf(stderr,"  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased model\n");
 fprintf(stderr,"\nCorrelated model (-m correlated) Options\n\n");
 fprintf(stderr,"  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation model\n");
+
+fprintf(stderr,"\nSinusoidally Varying Bias model (-m sinbias) Options\n\n");
+fprintf(stderr,"  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model\n");
+fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0. Only for sinbias model\n");
+fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model\n");
+
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
 fprintf(stderr,"  --variance=<normal variance>   variance of the normally distributed data\n");
+
 fprintf(stderr,"\nLinear Congruential Generator model (-m lcg) Options\n\n");
 fprintf(stderr,"  --lcg_a=<LCG multipler term>  Positive integer less than lcg_m\n");
 fprintf(stderr,"  --lcg_c=<LCG additive term>   Positive integer less than lcg_m\n");
 fprintf(stderr,"  --lcg_m=<LCG modulo term>     Positive integer defining size of the group\n");
 fprintf(stderr,"  --lcg_truncate=<lower bits to truncate>     Positive integer\n");
 fprintf(stderr,"  --lcg_outbits=<Number of bits per output>     Positive integer\n");
+
 fprintf(stderr,"\nPermuted Congruential Generator model (-m pcg) Options\n\n");
 fprintf(stderr,"  --pcg_state_size=<state size of PCG>  16 ,32 or 64\n");
 fprintf(stderr,"  --pcg_generator=<Generator Algorithm> MCG or LCG\n");
 fprintf(stderr,"  --pcg_of=<Output Function>            XSH_RS or XSH_RR\n");
+
 fprintf(stderr,"\nXorShift model (-m xorshift) Options\n\n");
 fprintf(stderr,"  --xorshift_size=[state size of xorshift]  32 or 128\n");
+
 fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
 fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample\n");
@@ -99,16 +113,19 @@ fprintf(stderr,"  -s, --seed                     seed the internal RNG with /dev
 fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
 fprintf(stderr,"  -c, --cmax=<generate length>   number of PRNG generates before a reseed\n");
 fprintf(stderr,"  -v, --verbose                  output the parameters\n");
+
 fprintf(stderr,"\nFile Options\n\n");
 fprintf(stderr,"  -o <output_filename>             output file\n");
 fprintf(stderr,"  -j, --jfile=<j filename>         filename to push source model internal state to\n");
 fprintf(stderr,"  -i, --infile=<input filename>    filename of entropy file for file model\n");
 fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored\n");
 fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n");
+
 fprintf(stderr,"\nOutput Format Options\n\n");
 fprintf(stderr,"  -b, --binary                output in raw binary format\n");
 fprintf(stderr,"  --bpb                       Number of bits per byte to output in binary output mode. Default 8.\n");
 fprintf(stderr,"  -w, --width=[1...256]       Byte per line of output\n");
+
 fprintf(stderr,"\nThe most important option of all\n\n");
 fprintf(stderr,"  -h, --help                     print this help and exit\n");
 }
@@ -223,6 +240,11 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 		result = correlatedsource(modelstate, rngstate);
 		return result;
 	}
+	else if (model==MODEL_SINBIAS)
+ 	{
+		result = sinbiassource(modelstate, rngstate);
+		return result;
+	}
 	else if (model==MODEL_LCG)
  	{
 		result = lcgsource(modelstate, rngstate);
@@ -269,6 +291,10 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	else if (model==MODEL_CORRELATED)
  	{
 		correlatedinit(modelstate, rngstate);
+	}
+	else if (model==MODEL_SINBIAS)
+ 	{
+		sinbiasinit(modelstate, rngstate);
 	}
 	else if (model==MODEL_NORMAL)
 	{
@@ -380,7 +406,13 @@ int main(int argc, char** argv)
 	modelstate.pcg_index=0;
 	modelstate.pcg_alg = PCG_LCG;
 	modelstate.pcg_of = XSH_RR;  
-	  
+	
+	modelstate.sinbias_amplitude = 0.5;
+	modelstate.sinbias_offset = 0.5;
+	modelstate.sinbias_period = 1000;
+	
+	modelstate.time = 0;
+	
 	rngstate.c_max=511;
 	
 	modelstate.left_stepsize = 0.1;
@@ -450,6 +482,10 @@ int main(int argc, char** argv)
     { "pcg_state_size", required_argument, NULL, 0 },
     { "pcg_generator", required_argument, NULL, 0 },
     { "pcg_of", required_argument, NULL, 0 },
+    
+    { "sinbias_amplitude", required_argument, NULL, 0 },
+    { "sinbias_offset", required_argument, NULL, 0 },
+    { "sinbias_period", required_argument, NULL, 0 },
     
     { "xorshift_size", required_argument, NULL, 0 },
     
@@ -527,6 +563,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"pure")==0) model=MODEL_PURE;
                 else if (strcmp(optarg,"biased")==0) model=MODEL_BIASED;
                 else if (strcmp(optarg,"correlated")==0) model=MODEL_CORRELATED;
+                else if (strcmp(optarg,"sinbias")==0) model=MODEL_SINBIAS;
                 else if (strcmp(optarg,"lcg")==0) model=MODEL_LCG;
                 else if (strcmp(optarg,"pcg")==0) model=MODEL_PCG;
                 else if (strcmp(optarg,"xorshift")==0) model=MODEL_XORSHIFT;
@@ -624,8 +661,17 @@ int main(int argc, char** argv)
                 if( strcmp( "xorshift_size", longOpts[longIndex].name ) == 0 ) {
                     modelstate.xorshift_size = atoi(optarg);
                 }
-                break;
                 
+                if( strcmp( "sinbias_amplitude", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.sinbias_amplitude = atof(optarg);
+                }
+                if( strcmp( "sinbias_offset", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.sinbias_offset = atof(optarg);
+                }
+                if( strcmp( "sinbias_period", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.sinbias_period = atoi(optarg);
+                }
+                break;
             case 'h':   /* fall-through is intentional */
             case '?':
                 display_usage();
@@ -707,11 +753,17 @@ int main(int argc, char** argv)
         	abort=1;
         }
 
+    if (modelstate.sinbias_period < 4)
+    {
+        	printf("Error: --sinbiad_period=%llu: Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
+        	abort=1;
+    }
+    
 	if (modelstate.left_stepsize == 0.0)
 	{
         	printf("Error: -l n: left stepsize cannot be 0.0. Supplied value = %f\n",modelstate.left_stepsize);
         	abort=1;
-        }
+    }
 	if (modelstate.right_stepsize == 0.0)
 	{
         	printf("Error: -l n: right stepsize cannot be 0.0 . Supplied value = %f\n",modelstate.right_stepsize);

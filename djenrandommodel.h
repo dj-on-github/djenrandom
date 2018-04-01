@@ -71,6 +71,13 @@ typedef struct {
         uint64_t  pcg64_adder;
         uint64_t  pcg128_adder[2];
         
+        /* sin bias states */
+        uint64_t sinbias_period;
+        double sinbias_amplitude;
+        double sinbias_offset;
+        int    sinbias_bias;
+        uint64_t time;
+    
         /* XORSHIFT States */
         
 		uint32_t xorshift_size;
@@ -122,6 +129,7 @@ int smoothsource(     t_modelstate* modelstate, t_rngstate* rngstate);
 int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int sinbiassource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int xorshiftsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -140,9 +148,10 @@ void smoothinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
-void lcginit( t_modelstate* modelstate, t_rngstate* rngstate);
-void pcginit( t_modelstate* modelstate, t_rngstate* rngstate);
-void xorshiftinit( t_modelstate* modelstate, t_rngstate* rngstate);
+void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
+void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
+void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
+void xorshiftinit(   t_modelstate* modelstate, t_rngstate* rngstate);
 void normalinit(     t_modelstate *modelstate, t_rngstate* rngstate);
 void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
 
