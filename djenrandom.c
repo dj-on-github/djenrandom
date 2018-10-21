@@ -755,7 +755,7 @@ int main(int argc, char** argv)
 
     if (modelstate.sinbias_period < 4)
     {
-        	printf("Error: --sinbiad_period=%llu: Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
+        	printf("Error: --sinbiad_period=%lu: Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
         	abort=1;
     }
     
