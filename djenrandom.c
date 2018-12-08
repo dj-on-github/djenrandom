@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <math.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "aes128k128d.h"
 #include "djenrandommodel.h"
@@ -47,6 +48,7 @@
 #define MODEL_PCG 7
 #define MODEL_XORSHIFT 8
 #define MODEL_SINBIAS 9
+#define MODEL_MARKOV2P 10
 
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
@@ -56,11 +58,12 @@ int aesni_supported;
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
-fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|file>] [-l <left_stepsize>]\n"); 
+fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
 fprintf(stderr,"       [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]\n");
+fprintf(stderr,"       [--p10=<probability of 10 transition] [--p01=<probability of 01 transition>]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
@@ -85,6 +88,10 @@ fprintf(stderr,"\nSinusoidally Varying Bias model (-m sinbias) Options\n\n");
 fprintf(stderr,"  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model\n");
 fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0. Only for sinbias model\n");
 fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model\n");
+
+fprintf(stderr,"\nTwo Parameter Markov model (-m markov_2_param) Options\n\n");
+fprintf(stderr,"  --p10=<0.0 to 1.0>        The probability of a 1 following a 0\n");
+fprintf(stderr,"  --p01=<0.0 to 1.0>        The probability of a 0 following a 1\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -240,6 +247,11 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 		result = correlatedsource(modelstate, rngstate);
 		return result;
 	}
+	else if (model==MODEL_MARKOV2P)
+ 	{
+		result = markov2psource(modelstate, rngstate);
+		return result;
+	}
 	else if (model==MODEL_SINBIAS)
  	{
 		result = sinbiassource(modelstate, rngstate);
@@ -291,6 +303,10 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	else if (model==MODEL_CORRELATED)
  	{
 		correlatedinit(modelstate, rngstate);
+	}
+	else if (model==MODEL_MARKOV2P)
+ 	{
+		markov2pinit(modelstate, rngstate);
 	}
 	else if (model==MODEL_SINBIAS)
  	{
@@ -424,6 +440,8 @@ int main(int argc, char** argv)
 	modelstate.using_stepnoise = 0;
 	modelstate.stepnoise = 0.0;
 	modelstate.sums_bias = 0.0;
+	modelstate.p01 = 0.5;
+	modelstate.p10 = 0.5;
 	
 	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
@@ -456,6 +474,8 @@ int main(int argc, char** argv)
     char optString[] = "c:m:l:r:B:o:j:i:f:k:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
+    { "p01", required_argument, NULL, 0 },
+    { "p10", required_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
@@ -563,6 +583,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"pure")==0) model=MODEL_PURE;
                 else if (strcmp(optarg,"biased")==0) model=MODEL_BIASED;
                 else if (strcmp(optarg,"correlated")==0) model=MODEL_CORRELATED;
+                else if (strcmp(optarg,"markov_2_param")==0) model=MODEL_MARKOV2P;
                 else if (strcmp(optarg,"sinbias")==0) model=MODEL_SINBIAS;
                 else if (strcmp(optarg,"lcg")==0) model=MODEL_LCG;
                 else if (strcmp(optarg,"pcg")==0) model=MODEL_PCG;
@@ -571,7 +592,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
                 {
-                    printf("model type %s not recognized. Choose from sums, pure, biased, correlated, normal or file.\n",optarg);
+                    printf("model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, normal or file.\n",optarg);
                     exit(1);
                 }
                 break; 
@@ -671,6 +692,14 @@ int main(int argc, char** argv)
                 if( strcmp( "sinbias_period", longOpts[longIndex].name ) == 0 ) {
                     modelstate.sinbias_period = atoi(optarg);
                 }
+                
+                if( strcmp( "p01", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.p01 = atof(optarg);
+                }
+                if( strcmp( "p10", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.p10 = atof(optarg);
+                }
+                
                 break;
             case 'h':   /* fall-through is intentional */
             case '?':
@@ -755,7 +784,7 @@ int main(int argc, char** argv)
 
     if (modelstate.sinbias_period < 4)
     {
-        	printf("Error: --sinbiad_period=%lu: Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
+        	printf("Error: --sinbiad_period=%" PRId64 ": Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
         	abort=1;
     }
     
@@ -795,7 +824,18 @@ int main(int argc, char** argv)
 		printf("Error: --correlation n: correlation must be between -1.0 and 1.0. Supplied value = %f\n",modelstate.correlation);
 		abort=1;
 	}
-
+	
+	if ((modelstate.p01 < 0.0) || (modelstate.p01 >1.0))
+	{
+		printf("Error: --p01 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p01);
+		abort=1;
+	}
+	if ((modelstate.p10 < 0.0) || (modelstate.p10 >1.0))
+	{
+		printf("Error: --p10 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p10);
+		abort=1;
+	}
+		
 	if (kilobytes < 1)
 	{
         	printf("Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);

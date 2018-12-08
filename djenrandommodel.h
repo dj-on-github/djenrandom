@@ -39,6 +39,10 @@ typedef struct {
 		double mean;
 		double variance;
 		
+		double p01;
+		double p10;
+		
+		
 		unsigned long long lcg_a; /* LCG Model */
 		unsigned long long lcg_c;
 		unsigned long long lcg_m;
@@ -129,6 +133,7 @@ int smoothsource(     t_modelstate* modelstate, t_rngstate* rngstate);
 int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markov2psource( t_modelstate *modelstate, t_rngstate* rngstate);
 int sinbiassource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -148,6 +153,7 @@ void smoothinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
+void markov2pinit(   t_modelstate* modelstate, t_rngstate* rngstate);
 void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
 void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
 void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);

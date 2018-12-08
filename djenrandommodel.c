@@ -434,6 +434,59 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
 	return(result);
 }
 
+int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
+{
+	int result;
+	double p01_dthreshold;
+	double p10_dthreshold;
+	int p10_threshold;
+	int p01_threshold;
+	unsigned long int theint;
+	double p01;
+	double p10;
+    double maxp;
+    double entropy;
+    double bias;
+
+	/* get a uniform Random number.              */
+
+	theint = getrand16(rngstate);
+
+	p01 = modelstate->p01;
+	p10 = modelstate->p10;
+	
+	p01_dthreshold = 65536.0*p01;
+	p10_dthreshold = 65536.0*p10;
+	p01_threshold = (int)p01_dthreshold;
+    p10_threshold = (int)p10_dthreshold;
+    
+	if (modelstate->lastbit==1)
+	{
+		if (theint < p10_threshold) result = 1;
+		else result = 0;
+		bias = p10;
+	}
+	else
+	{
+		if (theint < p01_threshold) result = 1;
+		else result = 0;
+		bias = p01;
+	}
+
+    modelstate->sums_bias = bias;
+    
+	if (modelstate->using_jfile == 1)
+	{
+        if (bias > 0.5) maxp = bias;
+        else maxp = 1.0 - bias;
+
+        entropy = -log(maxp)/log(2);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
+	}
+	return(result);
+}
+
+
 int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
 {
 	int result;
@@ -1081,6 +1134,24 @@ void biasedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 
 }
 void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+	unsigned char out[16];
+
+	smoothinit(modelstate, rngstate);
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+		/*fread(rngstate->rngbits,16,1,rngstate->devrandom);*/
+	}
+	else
+	{
+		aes128k128d(rngstate->k,rngstate->v,out);
+		aes128k128d(out,rngstate->k,rngstate->rngbits);
+	}
+
+}
+
+void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
