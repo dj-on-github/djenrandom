@@ -462,8 +462,8 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
     
 	if (modelstate->lastbit==1)
 	{
-		if (theint < p10_threshold) result = 1;
-		else result = 0;
+		if (theint < p10_threshold) result = 0;
+		else result = 1;
 		bias = p10;
 	}
 	else
