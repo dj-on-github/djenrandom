@@ -10,6 +10,7 @@ Pure : Uniform random data.
 SUMS : Step Update Metastable Source. This models a step update metastable entropy source of the type used in Intel CPUs.
 Biased : This model allows the probability of a 1 or 0 to be controlled.
 Correlated : This model allows the serial correlation coefficient to be controlled.
+Normal : This model generates Normal (or Gaussian) distributed data and outputs as floating point values.
 SinBias : This model has a sinusoidally varying bias.
 Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
                      give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
