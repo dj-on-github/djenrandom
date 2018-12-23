@@ -460,6 +460,11 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
 	p01_threshold = (int)p01_dthreshold;
     p10_threshold = (int)p10_dthreshold;
     
+    	    //printf("bias = %f\n",modelstate.bias);
+	        //printf("correlation = %f\n",modelstate.correlation);
+	        //printf("p01 = %f\n",p01);
+	        //printf("p10 = %f\n",p10);
+	        
 	if (modelstate->lastbit==1)
 	{
 		if (theint < p10_threshold) result = 0;

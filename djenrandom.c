@@ -80,9 +80,9 @@ fprintf(stderr,"  -r, --right=<right_stepsize>   stepsize when moving right as a
 fprintf(stderr,"  --stepnoise=<noise on step>    variance of the noise on stepsize. e.g. 0.00001.\n");
 
 fprintf(stderr,"\nBiased model (-m biased) Options\n\n");
-fprintf(stderr,"  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased model\n");
+fprintf(stderr,"  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased or markov model\n");
 fprintf(stderr,"\nCorrelated model (-m correlated) Options\n\n");
-fprintf(stderr,"  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation model\n");
+fprintf(stderr,"  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation or markov model\n");
 
 fprintf(stderr,"\nSinusoidally Varying Bias model (-m sinbias) Options\n\n");
 fprintf(stderr,"  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model\n");
@@ -90,8 +90,13 @@ fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the va
 fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model\n");
 
 fprintf(stderr,"\nTwo Parameter Markov model (-m markov_2_param) Options\n\n");
-fprintf(stderr,"  --p10=<0.0 to 1.0>        The probability of a 1 following a 0\n");
-fprintf(stderr,"  --p01=<0.0 to 1.0>        The probability of a 0 following a 1\n");
+fprintf(stderr,"  --p10=<0.0 to 1.0>        The probability of a 1 following a 0, default 0.5\n");
+fprintf(stderr,"  --p01=<0.0 to 1.0>        The probability of a 0 following a 1, default 0.5\n");
+fprintf(stderr,"         or\n");
+fprintf(stderr,"  --bias=<0.0 to 1.0>               The ones probability, default 0.5\n");
+fprintf(stderr,"  --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0\n");
+fprintf(stderr,"         or\n");
+fprintf(stderr,"  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -388,7 +393,13 @@ int main(int argc, char** argv)
 	t_rngstate rngstate;
 	t_modelstate modelstate;
 
-
+    int gotcorrelation;
+    int gotbias;
+    int gotmean;
+    int gotp01;
+    int gotp10;
+    int gotentropy;
+    
 	/* Defaults */
 	binary_mode = 0; /* binary when 1, hex when 0 */
     bits_per_byte = 8; /* default 8 bits per byte */
@@ -409,6 +420,13 @@ int main(int argc, char** argv)
 	xmin=0;
 	xmax=0;
 	aesni_supported = 0;
+	
+	gotcorrelation = 0;
+    gotbias = 0;
+    gotmean = 0;
+    gotp01 = 0;
+    gotp10 = 0;
+    gotentropy = 0;
     
 	modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
     modelstate.lcg_c = 11ULL;
@@ -468,6 +486,7 @@ int main(int argc, char** argv)
     int longIndex;
     int gotxmin;
     int gotxmax;
+
     
     gotxmin = 0;
     gotxmax = 0;
@@ -476,6 +495,7 @@ int main(int argc, char** argv)
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
     { "p10", required_argument, NULL, 0 },
+    { "entropy", required_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
@@ -635,12 +655,19 @@ int main(int argc, char** argv)
                 }
                 if( strcmp( "bias", longOpts[longIndex].name ) == 0 ) {
                     modelstate.bias = atof(optarg);
+                    gotbias=1;
                 }
                 if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
                     modelstate.correlation = atof(optarg);
+                    gotcorrelation=1;
+                }
+                if( strcmp( "entropy", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.entropy = atof(optarg);
+                    gotentropy=1;
                 }
                 if( strcmp( "mean", longOpts[longIndex].name ) == 0 ) {
                     modelstate.mean = atof(optarg);
+                    gotmean=1;
                 }
                 if( strcmp( "variance", longOpts[longIndex].name ) == 0 ) {
                     modelstate.variance = atof(optarg);
@@ -695,9 +722,11 @@ int main(int argc, char** argv)
                 
                 if( strcmp( "p01", longOpts[longIndex].name ) == 0 ) {
                     modelstate.p01 = atof(optarg);
+                    gotp01 = 1;
                 }
                 if( strcmp( "p10", longOpts[longIndex].name ) == 0 ) {
                     modelstate.p10 = atof(optarg);
+                    gotp10 = 1;
                 }
                 
                 break;
@@ -859,6 +888,43 @@ int main(int argc, char** argv)
 	        exit(1);
 	    }    
 	}
+	if (model==MODEL_MARKOV2P) {
+	    if (((gotcorrelation==1) || (gotbias==1)) &&  ((gotp01) || (gotp10))) {
+	        printf("Error: Cannot give both correlation,bias and p01,p10 parameters with Markov model\n");
+	        exit(1);
+	    }    
+	    if (((gotcorrelation==1) || (gotbias==1)) &&  (gotentropy)) {
+	        printf("Error: Cannot give both correlation,bias and entropy parameters with Markov model\n");
+	        exit(1);
+	    }  
+	    if (((gotp01==1) || (gotp10==1)) &&  (gotentropy)) {
+	        printf("Error: Cannot give both p01,p10 and entropy parameters with Markov model\n");
+	        exit(1);
+	    }  
+	    
+	    // Deal with the 3 parameter types
+	    if ((gotbias == 1) || (gotcorrelation==1)) {
+	        if (gotbias==0) modelstate.bias = 0.5;
+	        if (gotcorrelation==0) modelstate.correlation = 0.0;
+	        modelstate.p01 = modelstate.bias * (1.0 - modelstate.correlation);
+	        modelstate.p10 = (1.0-modelstate.bias)*(1.0-modelstate.correlation);
+	        //printf("bias = %f\n",modelstate.bias);
+	        //printf("correlation = %f\n",modelstate.correlation);
+	        //printf("p01 = %f\n",modelstate.p01);
+	        //printf("p10 = %f\n",modelstate.p10);
+	    } else if ((gotp01 == 1) || (gotp10==1))  {
+	    	if (gotp01==0) modelstate.p01 = 0.5;
+	        if (gotp10==0) modelstate.p10 = 0.5;
+	    } else if (gotentropy==0) {
+	        modelstate.entropy = 1.0;
+	        // This one is more difficult - there is more than one value for p01,p10
+	        // for each value of entropy.
+	        // [TBD]
+	    }
+	    
+	    
+	    
+	}
 	if (model==MODEL_FILE) {
 		if (modelstate.using_infile == 0) {
 			printf("Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
@@ -929,6 +995,12 @@ int main(int argc, char** argv)
 			printf("  correlation  = %f\n",modelstate.correlation);
 		}
 
+		if (model == MODEL_CORRELATED)
+		{
+			printf("model=correlated\n");
+			printf("  correlation  = %f\n",modelstate.correlation);
+		}
+		
 		if (model == MODEL_LCG)
 		{
 			printf("model=linear congruential generator\n");

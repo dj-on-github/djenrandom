@@ -35,6 +35,7 @@ typedef struct {
 		double right_stepsize;
 		double sums_bias;
 		double correlation;
+		double entropy;
 		double bias;
 		double mean;
 		double variance;
