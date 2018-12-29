@@ -22,7 +22,7 @@ Data is output in either hex or binary, using the -b flag.
 The data is the same every time, unless you seed the generator from /dev/random using the -s option.
 There are a variety of models
 
-Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
+Usage: djenrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
        [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
