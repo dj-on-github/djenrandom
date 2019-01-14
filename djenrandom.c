@@ -395,7 +395,7 @@ int main(int argc, char** argv)
 
     int gotcorrelation;
     int gotbias;
-    int gotmean;
+    /* int gotmean; */
     int gotp01;
     int gotp10;
     int gotentropy;
@@ -423,7 +423,7 @@ int main(int argc, char** argv)
 	
 	gotcorrelation = 0;
     gotbias = 0;
-    gotmean = 0;
+    /* gotmean = 0;*/
     gotp01 = 0;
     gotp10 = 0;
     gotentropy = 0;
@@ -667,7 +667,7 @@ int main(int argc, char** argv)
                 }
                 if( strcmp( "mean", longOpts[longIndex].name ) == 0 ) {
                     modelstate.mean = atof(optarg);
-                    gotmean=1;
+                    /*gotmean=1;*/
                 }
                 if( strcmp( "variance", longOpts[longIndex].name ) == 0 ) {
                     modelstate.variance = atof(optarg);
