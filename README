@@ -14,7 +14,7 @@ Normal : This model generates Normal (or Gaussian) distributed data and outputs 
 SinBias : This model has a sinusoidally varying bias.
 Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
                      give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
-                     bias a serial correlation to be modelled in the same data series.
+                     bias and serial correlation to be modelled in the same data series.
 File : This reads data from a file and re-outputs it.
 
 This program generates random data in 1KiByte blocks. The number of blocks is controlled by the -k <blocks> option.
@@ -108,7 +108,7 @@ Output Format Options
 
   -b, --binary                output in raw binary format
   --bpb                       Number of bits per byte to output in binary output mode. Default 8.
-  -w, --width=[1...256]       Byte per line of output
+  -w, --width=[1...256]       Bytes per line of output when in hex output mode
 
 The most important option of all
 
