@@ -97,6 +97,7 @@ fprintf(stderr,"  --bias=<0.0 to 1.0>               The ones probability, defaul
 fprintf(stderr,"  --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0\n");
 fprintf(stderr,"         or\n");
 fprintf(stderr,"  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0\n");
+fprintf(stderr,"  --bitwidth=<3 to 64>      The number of bits per symbol\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -339,6 +340,608 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	}
 }
 
+// Return a uniform floating point in [0,1]
+
+
+uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate) {
+    uint64_t e;
+
+    e = start;
+    do {
+        if ((getrand64(rngstate) & 0x01) == 1) return e;
+        e = e-1;
+    } while (e > 0);
+    return ((uint64_t)0);
+}
+
+double get_rand_double(t_rngstate* rngstate) {
+    uint64_t start;
+    uint64_t mantissa;
+    uint64_t exponent;
+    uint64_t sign;
+    uint64_t x;
+    double *f;
+    double result;
+
+    start = 1022;
+    int i;
+    for (i=0;i<1000;i++) {
+        mantissa = (getrand64(rngstate) & 0x07ffffffffffff) | 0x08000000000000;
+        exponent = choose_exponent(start,rngstate);
+        //sign = getrand64(rngstate) & 0x01;
+        sign = 0;
+        x = (sign << 63) | ((exponent & 0x7ff) << 52) | mantissa;
+        f = (double *)&x;
+        //printf("%f  exponent=%llu\n",*f,exponent);
+    }
+    result = *f;
+    //printf("  GET_RAND_DOUBLT = %f\n",result);
+    fflush(stdout);
+    return result;
+}
+
+char symboltext[255];
+
+void print_symbol(uint64_t x, int bitwidth) {
+    int i;
+    
+    for(i=0;i<bitwidth;i++) {
+        if (((x >> (bitwidth-1-i)) & 0x01)==0) symboltext[i]='0';
+        else symboltext[i]='1';
+    }
+    symboltext[bitwidth]=(char)0;
+}
+
+// Compute the min entropy per symbol for the
+// markov 2 parameter model, given the markov model
+// parameters p01 and p10.
+double symbol_prob(double p01, double p10, uint64_t x, int bitwidth) {
+    double p00;
+    double p11;
+    double mu;
+    double p0;
+    double p1;
+    double plist0;
+    double plist1;
+    int bp;
+    double p;
+    
+    int i;
+    
+    plist0=1.0;
+    plist1=1.0;
+    
+    p00 = 1.0-p01;
+    p11 = 1.0-p10;
+    mu = p01/(p10+p01);
+    p0 = 1.0-mu;
+    p1 = mu;
+    
+    print_symbol(x,bitwidth);
+    //printf("  SYMBOL PROB p01=%f,   p10=%f,  x=%" PRIx64 " = b%s  bitwidth=%d\n",p01,p10,x,symboltext,bitwidth);
+    //printf("              P01 = %f\n", p01);
+    //printf("              P10 = %f\n", p10);
+    //printf("              P00 = %f\n", p00);
+    //printf("              P11 = %f\n", p11);
+    //printf("              mu = %f\n", mu);
+    //printf("              P0 = %f\n", p0);
+    //printf("              P1 = %f\n", p1);
+     
+    if ((p01==0.5) && (p10==0.5)) return 1.0;
+    
+    plist0 = 1.0;
+    plist1 = 1.0;
+    
+    if ((x>>(bitwidth-1) & 0x1)==0) {
+        plist0 *= p00;
+        plist1 *= p10;
+    }
+    else {
+        plist0 *= p01;
+        plist1 *= p11;
+    }
+    
+    //printf(" plist0=%f  ",plist0);
+    //printf(" plist1=%f\n",plist1);
+    
+    for (i=0;i<(bitwidth-2);i++) {
+        bp = ((x >> (bitwidth-2-i)) & 0x3);  // Get the bit pair
+        //printf("       bitpair %d = %d ",i,bp);
+        if (bp==0) {
+            plist0 *= p00;
+            plist1 *= p00;
+            //printf(" plist0=%f * p00(%f)  ",plist0,p00);
+            //printf(" plist1=%f * p00(%f)\n",plist1,p00);
+        } else if (bp==1) {
+            plist0 *= p01;
+            plist1 *= p01;
+            //printf(" plist0=%f * p01(%f)  ",plist0,p01);
+            //printf(" plist1=%f * p01(%f)\n",plist1,p01);
+        } else if (bp==2) {
+            plist0 *= p10;
+            plist1 *= p10;
+            //printf(" plist0=%f * p10(%f)  ",plist0,p10);
+            //printf(" plist1=%f * p10(%f)\n",plist1,p10);
+        } else if (bp==3) {
+            plist0 *= p11;
+            plist1 *= p11;
+            //printf(" plist0=%f * p11(%f)  ",plist0,p11);
+            //printf(" plist1=%f * p11(%f)\n",plist1,p11);
+        }
+        
+        
+    }
+    
+    p = (p0 * plist0) + (p1 * plist1);
+    
+    fflush(stdout);
+    return p;
+    
+}
+
+//def symbol_prob(p01,p10,x):
+// 69     p00 = 1.0-p01
+// 70     p11 = 1.0-p10
+// 71     mu = p01/(p10+p01)
+// 72     p0 = 1.0-mu
+// 73     p1 = mu
+// 74
+// 75     if p01 == 0.5 and p10 == 0.5:
+// 76         return (1.0)
+// 77
+// 78     # Get the probabilties of the first bit for the two
+// 79     # values of the bit before the first bit
+// 80     plist0 = list()
+// 81     plist1 = list()
+// 82     if x[0] == 0:
+// 83         plist0.append(p00)
+// 84         plist1.append(p10)
+// 85     else: #x[0] == 1
+// 86         plist0.append(p01)
+// 87         plist1.append(p11)
+// 88
+// 89     for i in range(len(x)-1):
+// 90         if x[i:i+2]==[0,0]:
+// 91             plist0.append(p00)
+// 92             plist1.append(p00)
+// 93         if x[i:i+2]==[0,1]:
+// 94             plist0.append(p01)
+// 95             plist1.append(p01)
+// 96         if x[i:i+2]==[1,0]:
+// 97             plist0.append(p10)
+// 98             plist1.append(p10)
+// 99         if x[i:i+2]==[1,1]:
+//100             plist0.append(p11)
+//101             plist1.append(p11)
+//102
+//103     p_0 = reduce(lambda x,y: x*y, plist0)
+//104     p_1 = reduce(lambda x,y: x*y, plist1)
+//105
+//106     p = (p0 * p_0) + (p1 * p_1)
+//107     return p
+
+double max(double x, double y) {
+    if (x>y) return x;
+    if (y>x) return y;
+    return x;
+}
+
+uint64_t mk_symbol(int prefix, int tbp, int postfix, int bitwidth) {
+    int rep;
+    int i;
+    
+    uint64_t pattern;
+    
+    rep = (bitwidth-2)/2;
+    pattern = prefix;
+    
+    for(i=0;i<rep;i++) {
+        pattern = (pattern << 2) + tbp; 
+    }
+    pattern = (pattern << 1) + postfix;
+    
+    return pattern;    
+}
+
+uint64_t mk_symbol_nopostfix(int prefix, int tbp, int bitwidth) {
+    int rep;
+    int i;
+    
+    uint64_t pattern;
+    
+    rep = (bitwidth-2)/2;
+    pattern = prefix;
+
+    pattern = prefix;
+    for(i=0;i<((bitwidth-1)/2);i++) {
+        pattern = (pattern << 2) + tbp; 
+    }
+    
+    return pattern;    
+}
+
+double p_to_entropy(double p01, double p10,int bitwidth) {
+    double mu;
+    double entropy;
+    //double p00;
+    //double p11;
+    uint64_t mcv_0_zeroes;
+    uint64_t mcv_1_zeroes;
+    
+    uint64_t mcv_0_ones;
+    uint64_t mcv_1_ones;
+    
+    uint64_t mcv_1_01;
+    uint64_t mcv_0_01;
+    uint64_t mcv_1_10;
+    uint64_t mcv_0_10;
+    
+    uint64_t mcv_0_01_0;
+    uint64_t mcv_1_01_0;
+    //uint64_t mcv_01_0;
+    
+    uint64_t mcv_0_01_1;
+    uint64_t mcv_1_01_1;
+    //uint64_t mcv_01_1;
+    
+    uint64_t mcv_0_10_0;
+    uint64_t mcv_1_10_0;
+    //uint64_t mcv_10_0;
+    
+    uint64_t mcv_0_10_1;
+    uint64_t mcv_1_10_1;
+    //uint64_t mcv_10_1;
+    
+    double p0;
+    double p1;
+    
+    double prob_zeroes;
+    double prob_ones;
+    
+    double prob_1_zeroes;
+    double prob_1_ones;
+    
+    double prob_0_zeroes;
+    double prob_0_ones;
+    
+    double prob_1_01;
+    double prob_0_01;
+    double prob_1_10;
+    double prob_0_10;
+    
+    double prob_01;
+    double prob_10;
+    
+    double prob_0_01_1;
+    double prob_1_01_1;
+    
+    double prob_0_10_1;
+    double prob_1_10_1;
+    
+    double prob_0_01_0;
+    double prob_1_01_0;
+    
+    double prob_0_10_0;
+    double prob_1_10_0;
+    
+    double prob_01_0;
+    double prob_01_1;
+    double prob_10_0;
+    double prob_10_1;
+        
+    double maxp;
+
+    mu = p01/(p10+p01);
+    p0 = 1.0-mu;
+    p1 = mu;
+    
+    if ((p10+p01) == 0.0) {
+        // This is an error.
+        // p01+p10 should add up to something.
+        // Otherwise you are stuck in the starting state
+        // of the markov chain.
+        return 0.0;
+        printf(" P_TO_ENT  returniing 0.0\n");
+    }
+
+    // If we are in the center then
+    // it's full entropy
+    if ((p10==0.5) && (p01==0.5)) {
+        return 1.0;
+        printf(" P_TO_ENT  returniing 1,0\n");
+    }
+    
+    // Compute entropy from p01 and p10
+    if ((bitwidth % 2)==1) { // odd bitwidth. 
+        mcv_0_zeroes = 0;
+        mcv_1_zeroes = (1 << bitwidth);
+        mcv_0_ones = pow(2,bitwidth)-1;
+        mcv_1_ones = (1<<bitwidth) + pow(2,bitwidth)-1;
+
+        prob_0_zeroes = (symbol_prob( p01,p10, mcv_0_zeroes,bitwidth+1));
+        prob_1_zeroes = (symbol_prob( p01,p10, mcv_1_zeroes,bitwidth+1));
+        prob_zeroes=(p0 * prob_0_zeroes)+(p1 * prob_1_zeroes);
+        
+        prob_0_ones = (symbol_prob( p01,p10, mcv_0_ones,bitwidth+1));
+        prob_1_ones = (symbol_prob( p01,p10, mcv_1_ones,bitwidth+1));
+        prob_ones=(p0 * prob_0_ones)+(p1 * prob_1_ones);
+        
+        mcv_1_01 = mk_symbol_nopostfix(1,1,bitwidth);
+        mcv_0_01 = mk_symbol_nopostfix(0,1,bitwidth);
+        
+        mcv_1_10 = mk_symbol_nopostfix(1,2,bitwidth);
+        mcv_0_10 = mk_symbol_nopostfix(0,2,bitwidth);
+    
+        prob_1_zeroes = symbol_prob(p01,p10, mcv_1_zeroes, bitwidth);
+        prob_0_zeroes = symbol_prob(p01,p10, mcv_0_zeroes, bitwidth);
+        prob_1_ones   = symbol_prob(p01,p10, mcv_1_ones, bitwidth);
+        prob_0_ones   = symbol_prob(p01,p10, mcv_0_ones, bitwidth);
+                
+        prob_ones = (p0*prob_0_ones) + (p1*prob_1_ones);
+        prob_zeroes = (p0*prob_0_zeroes) + (p1*prob_1_zeroes);
+        
+        prob_1_01 = symbol_prob(p01,p10,   mcv_1_01,   bitwidth);
+        prob_0_01 = symbol_prob(p01,p10,   mcv_0_01,   bitwidth);
+        prob_01 = (p0*prob_0_01) + (p1*prob_1_01);
+        
+        prob_1_10 = symbol_prob(p01,p10,   mcv_1_10,   bitwidth);
+        prob_0_10 = symbol_prob(p01,p10,   mcv_0_10,   bitwidth);
+        prob_10 = (p0*prob_0_10) + (p1*prob_1_10);
+        
+        maxp = max(prob_zeroes,prob_ones);
+        maxp = max(maxp,prob_01);
+        maxp = max(maxp,prob_10);
+        entropy = -log2(maxp);
+    }
+    else {                    // even bitwidth
+        mcv_0_zeroes = 0;
+        mcv_1_zeroes = (1 << bitwidth);
+        mcv_0_ones = pow(2,bitwidth)-1;
+        mcv_1_ones = (1<<bitwidth) + pow(2,bitwidth)-1;
+
+        //printf("  mcv_o_zeroes = %" PRIx64 "\n", mcv_0_zeroes);
+        //printf("  mcv_1_zeroes = %" PRIx64 "\n", mcv_1_zeroes);
+        //printf("  mcv_0_ones   = %" PRIx64 "\n", mcv_0_ones);
+        //printf("  mcv_1_ones   = %" PRIx64 "\n", mcv_1_ones);        
+
+        mcv_1_01_1 = mk_symbol(1,1,1,bitwidth);
+        mcv_0_01_1 = mk_symbol(0,1,1,bitwidth);
+
+        mcv_1_01_0 = mk_symbol(1,1,0,bitwidth);
+        mcv_0_01_0 = mk_symbol(0,1,0,bitwidth);
+
+        mcv_1_10_1 = mk_symbol(1,1,1,bitwidth);
+        mcv_0_10_1 = mk_symbol(0,1,1,bitwidth);
+
+        mcv_1_10_0 = mk_symbol(1,1,0,bitwidth);
+        mcv_0_10_0 = mk_symbol(0,1,0,bitwidth);
+                    
+        //printf("  mcv_1_01_1 = %" PRIx64 "\n", mcv_1_01_1);
+        //printf("  mcv_0_01_1 = %" PRIx64 "\n", mcv_1_01_0);
+        //printf("  mcv_1_01_0 = %" PRIx64 "\n", mcv_0_10_1);
+        //printf("  mcv_0_01_0 = %" PRIx64 "\n", mcv_0_10_0);
+        //printf("  mcv_1_10_1 = %" PRIx64 "\n", mcv_1_01_1);
+        //printf("  mcv_0_10_1 = %" PRIx64 "\n", mcv_1_01_0);
+        //printf("  mcv_1_10_0 = %" PRIx64 "\n", mcv_0_10_1);
+        //printf("  mcv_0_10_0 = %" PRIx64 "\n", mcv_0_10_0);
+                
+        prob_0_zeroes = (symbol_prob( p01,p10, mcv_0_zeroes,bitwidth+1));
+        prob_1_zeroes = (symbol_prob( p01,p10, mcv_1_zeroes,bitwidth+1));
+        prob_zeroes=(p0 * prob_0_zeroes)+(p1 * prob_1_zeroes);
+        
+        prob_0_ones = (symbol_prob( p01,p10, mcv_0_ones,bitwidth+1));
+        prob_1_ones = (symbol_prob( p01,p10, mcv_1_ones,bitwidth+1));
+        prob_ones=(p0 * prob_0_ones)+(p1 * prob_1_ones);
+                
+        
+        prob_1_01_1 = symbol_prob(p01,p10, mcv_1_01_1,bitwidth+1);
+        prob_0_01_1 = symbol_prob(p01,p10, mcv_0_01_1,bitwidth+1);
+        prob_01_1 = (p0 * prob_0_01_1) + (p1 * prob_1_01_1);
+        
+        prob_1_01_0 = symbol_prob(p01,p10, mcv_1_01_0,bitwidth+1);
+        prob_0_01_0 = symbol_prob(p01,p10, mcv_0_01_0,bitwidth+1);
+        prob_01_0 = (p0 * prob_0_01_0) + (p1 * prob_1_01_0);
+                
+        prob_1_10_1 = symbol_prob(p01,p10, mcv_1_10_1,bitwidth+1);
+        prob_0_10_1 = symbol_prob(p01,p10, mcv_0_10_1,bitwidth+1);
+        prob_10_1 = (p0 * prob_0_10_1) + (p1 * prob_1_10_1);
+                
+        prob_1_10_0 = symbol_prob(p01,p10, mcv_1_10_0,bitwidth+1);
+        prob_0_10_0 = symbol_prob(p01,p10, mcv_0_10_0,bitwidth+1);
+        prob_10_0 = (p0 * prob_0_10_0) + (p1 * prob_1_10_0);
+        
+        //printf("  prob_0_01_1 = %f\n", prob_0_01_1);
+        //printf("  prob_1_01_1 = %f\n", prob_1_01_1);
+        //
+        //printf("  prob_0_01_0 = %f\n", prob_0_01_0);
+        //printf("  prob_1_01_0 = %f\n", prob_1_01_0);
+        //
+        //printf("  prob_0_10_1 = %f\n", prob_0_10_1);
+        //printf("  prob_1_10_1 = %f\n", prob_1_10_1);
+        //
+        //printf("  prob_0_10_0 = %f\n", prob_0_10_0);
+        //printf("  prob_1_10_0 = %f\n", prob_1_10_0);
+        //
+        //printf("  prob_01_0 = %f\n",prob_01_0);
+        //printf("  prob_01_1 = %f\n",prob_01_1);
+        //printf("  prob_10_0 = %f\n",prob_10_0);
+        //printf("  prob_10_1 = %f\n",prob_10_1);
+        
+        maxp = max(prob_zeroes,prob_ones);
+        //printf("  maxp(zeroes(%f),ones(%f)) = %f\n",prob_zeroes, prob_ones,maxp);
+        maxp = max(maxp,prob_01_1);
+        //printf("  maxp(maxp,prob_01_1(%f)) = %f\n",prob_01_1,maxp);
+        maxp = max(maxp,prob_01_0);
+        //printf("  maxp(maxp,prob_01_0(%f)) = %f\n",prob_01_0,maxp);
+        maxp = max(maxp,prob_10_1);
+        //printf("  maxp(maxp,prob_10_1(%f)) = %f\n",prob_10_1,maxp);
+        maxp = max(maxp,prob_10_0);
+        //printf("  maxp(maxp,prob_10_0(%f)) = %f\n",prob_10_0,maxp);
+        entropy = -log2(maxp);
+        
+        //printf("  maxp= %f\n", maxp);
+        //printf("  entropy = %f\n",entropy); 
+        
+    }
+    printf(" P_TO_ENT  entropy=%f, bitwidth=%d\n", entropy,bitwidth);
+    fflush(stdout); 
+    return entropy/bitwidth; 
+}
+
+int near(double x,double y, double epsilon) {
+    return ((y > x-epsilon) && (y<x+epsilon));
+}
+
+void pick_point(double *p01, double *p10, double desired, double epsilon, int bitwidth, t_rngstate* rngstate) {
+    int chosen_param;
+    int chosen_side;
+    double startpoint01;
+    double startpoint10;
+    double endpoint01;
+    double endpoint10;
+    double choice01;
+    double choice10;
+    double Hc;
+    
+    double edge_entropy;
+    
+    do {
+        chosen_param = getrand16(rngstate) & 0x01;
+        chosen_side = getrand16(rngstate) & 0x01;
+        
+        if (chosen_param==0) {
+            *p01 = (double)chosen_side;
+            *p10 = get_rand_double(rngstate);
+        }
+        else {
+            *p10 = (double)chosen_side;
+            *p01 = get_rand_double(rngstate);
+        }
+        edge_entropy=p_to_entropy(*p01, *p10, bitwidth);
+        
+    } while (edge_entropy > desired);
+    
+    startpoint01 = 0.5;
+    startpoint10 = 0.5;
+    endpoint01 = *p01;
+    endpoint10 = *p10;
+    
+    choice01 = (startpoint01 + endpoint01)/2.0;
+    choice10 = (startpoint10 + endpoint10)/2.0;
+    Hc = p_to_entropy(choice01, choice10, bitwidth);
+    
+    printf("PICKING for entropy %f\n", desired);
+    printf("      first startpoint01  %f\n", startpoint01);
+    printf("      first startpoint10  %f\n", startpoint10);
+    printf("        first endpoint01  %f\n", endpoint01);
+    printf("        first endpoint10  %f\n", endpoint10);
+    printf("          first mid P01 = %f\n", choice01);
+    printf("          first mid P10 = %f\n", choice10);
+    printf("        start Hc    %f\n", Hc);
+    
+    fflush(stdout);
+    
+    while (!near(Hc, desired, epsilon)) {
+        printf("WHILE ...\n");
+        if (Hc > desired) {
+            startpoint01 = choice01;
+            startpoint10 = choice10;
+        }
+        else {
+            endpoint01 = choice01;
+            endpoint10 = choice10;
+        }
+        choice01 = (startpoint01 + endpoint01)/2.0;
+        choice10 = (startpoint10 + endpoint10)/2.0;
+               
+        printf("      startpoint01  %f\n", startpoint01);
+        printf("      startpoint10  %f\n", startpoint10);
+        printf("        endpoint01  %f\n", endpoint01);
+        printf("        endpoint10  %f\n", endpoint10);       
+        printf("   mid P01 = %f\n", choice01);
+        printf("   mid P10 = %f\n", choice10);
+    
+        Hc = p_to_entropy(choice01,choice10,bitwidth);
+        printf("   Hc  = %f\n", Hc);
+        fflush(stdout);
+    }
+    printf(" ** Chose P01 = %f\n", choice01);
+    printf(" ** Chose P10 = %f\n", choice10);
+    *p01 = choice01;
+    *p10 = choice10;
+    
+}
+
+
+
+//def H(point):
+//    (p01,p10)=point
+//    if (p10+p01) != 0:
+//        mean = p01/(p10+p01)
+//    else:
+//        mean = 0.0
+//
+//    
+//    alpha = -math.log(max(p01,\
+//                      1.0-p01),2)
+//    beta  = -math.log(max(p10,\
+//                      1.0-p10),2)
+//    entropy = (mean*beta)\
+//              + ((1.0-mean)*alpha)
+//
+//    return entropy
+//
+//def near(x,y,epsilon):
+//    return (y > x-epsilon)\
+//           and (y < x+epsilon)
+//
+//def pick_point(desired,epsilon):
+//    while True:
+//        chosen_param =\
+//          bool(random.getrandbits(1))
+//        chosen_side =\
+//          random.getrandbits(1)
+//
+//
+//        if not chosen_param:
+//            p01 = float(chosen_side)
+//            p10 = random.uniform(0.0,1.0)
+//        else:
+//            p10 = float(chosen_side)
+//            p01 = random.uniform(0.0,1.0)
+//
+//        if H((p01,p10)) <= h:
+//            break
+//
+//    # Binary search
+//    startpoint = [0.5,0.5]
+//    endpoint = [p01,p10]
+//    choice = [(startpoint[0]\
+//               +endpoint[0])/2.0,
+//              (startpoint[1]\
+//               +endpoint[1])/2.0]
+//    Hc = H(choice)
+//
+//    while not near(desired,Hc,epsilon):
+//        if Hc > desired:
+//            startpoint = choice
+//        else:
+//            endpoint = choice
+//
+//        choice = [(startpoint[0]\
+//                    +endpoint[0])/2.0,
+//                  (startpoint[1]\
+//                    +endpoint[1])/2.0]
+//        Hc = H(choice)
+//    return choice
+//
+//h = float(sys.argv[1])
+//epsilon = 2.0**(-52)
+//
+//(p01,p10) = pick_point(h,epsilon)
+//mean = p01/(p10+p01)
+//scc = 1 - p10-p01
+
 
 
 /********
@@ -384,7 +987,7 @@ int main(int argc, char** argv)
 	double postxor_entropy;
 	double total_entropy;
 	double prob;
-
+    
 	int samplenum;
 	int simrun;
 	unsigned char thesample[256];
@@ -399,6 +1002,9 @@ int main(int argc, char** argv)
     int gotp01;
     int gotp10;
     int gotentropy;
+    int gotbitwidth;
+    
+    double epsilon;
     
 	/* Defaults */
 	binary_mode = 0; /* binary when 1, hex when 0 */
@@ -427,6 +1033,7 @@ int main(int argc, char** argv)
     gotp01 = 0;
     gotp10 = 0;
     gotentropy = 0;
+    gotbitwidth = 0;
     
 	modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
     modelstate.lcg_c = 11ULL;
@@ -460,7 +1067,8 @@ int main(int argc, char** argv)
 	modelstate.sums_bias = 0.0;
 	modelstate.p01 = 0.5;
 	modelstate.p10 = 0.5;
-	
+	modelstate.bitwidth=4;
+    
 	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
 	postxor_entropy = 0.0;
@@ -495,6 +1103,7 @@ int main(int argc, char** argv)
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
     { "p10", required_argument, NULL, 0 },
+    { "bitwidth", required_argument, NULL, 0 },
     { "entropy", required_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
@@ -539,6 +1148,24 @@ int main(int argc, char** argv)
     { NULL, no_argument, NULL, 0 }
     };
 
+    /* Test for nondeterministic random source */
+    
+	if (rngstate.randseed==1) {
+        if (rdrand_check_support()==1) {    
+            rngstate.rdrand_available=1;	
+        }
+        else if ((rngstate.devrandom =  fopen("/dev/urandom", "r")) !=NULL) {
+            rngstate.devurandom_available = 1;
+        }
+        else {
+            rngstate.rdrand_available=0;
+		    rngstate.devurandom_available = 0;
+		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+            exit(1);
+		}
+	}
+    
+    
     opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
     while( opt != -1 ) {
         switch( opt ) {
@@ -728,7 +1355,11 @@ int main(int argc, char** argv)
                     modelstate.p10 = atof(optarg);
                     gotp10 = 1;
                 }
-                
+                if( strcmp( "bitwidth", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.bitwidth = atoi(optarg);
+                    gotbitwidth = 1;
+                }
+                                
                 break;
             case 'h':   /* fall-through is intentional */
             case '?':
@@ -760,6 +1391,9 @@ int main(int argc, char** argv)
 		}
 	}
 
+    /* start the RNG */
+    init_rng(&rngstate);
+    
 	/* Range check the var args */
 
 	abort = 0;
@@ -903,9 +1537,20 @@ int main(int argc, char** argv)
 	    }  
 	    
 	    // Deal with the 3 parameter types
-	    if ((gotbias == 1) || (gotcorrelation==1)) {
-	        if (gotbias==0) modelstate.bias = 0.5;
-	        if (gotcorrelation==0) modelstate.correlation = 0.0;
+	    if (gotentropy==1) {
+            epsilon = pow(2.0,-50);
+            pick_point(&(modelstate.p01),&(modelstate.p10),modelstate.entropy,epsilon,modelstate.bitwidth,&rngstate);
+            modelstate.bias = modelstate.p01/(modelstate.p10+modelstate.p01);
+            modelstate.correlation = 1.0 - modelstate.p01 - modelstate.p10;   
+        }
+        else if ((gotbias == 1) || (gotcorrelation==1)) {
+	        if (gotbias==0){
+                 modelstate.bias = 0.5;
+            }
+	        
+            if (gotcorrelation==0) {
+                modelstate.correlation = 0.0;
+            }
 	        modelstate.p01 = modelstate.bias * (1.0 - modelstate.correlation);
 	        modelstate.p10 = (1.0-modelstate.bias)*(1.0-modelstate.correlation);
 	        //printf("bias = %f\n",modelstate.bias);
@@ -915,11 +1560,14 @@ int main(int argc, char** argv)
 	    } else if ((gotp01 == 1) || (gotp10==1))  {
 	    	if (gotp01==0) modelstate.p01 = 0.5;
 	        if (gotp10==0) modelstate.p10 = 0.5;
+            modelstate.bias = modelstate.p01/(modelstate.p10+modelstate.p01);
+            modelstate.correlation = 1.0 - modelstate.p01 - modelstate.p10;           
 	    } else if (gotentropy==0) {
 	        modelstate.entropy = 1.0;
-	        // This one is more difficult - there is more than one value for p01,p10
-	        // for each value of entropy.
-	        // [TBD]
+            modelstate.p01 = 0.5;
+            modelstate.p10 = 0.5;
+            modelstate.bias = 0.5;
+            modelstate.correlation = 0.0;
 	    }
 	    
 	    
@@ -935,22 +1583,7 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-    /* Test for nondeterministic random source */
-    
-	if (rngstate.randseed==1) {
-        if (rdrand_check_support()==1) {    
-            rngstate.rdrand_available=1;	
-        }
-        else if ((rngstate.devrandom =  fopen("/dev/urandom", "r")) !=NULL) {
-            rngstate.devurandom_available = 1;
-        }
-        else {
-            rngstate.rdrand_available=0;
-		    rngstate.devurandom_available = 0;
-		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
-            exit(1);
-		}
-	}
+
 	
 	/* Print out the job parameters */
 	if (verbose_mode==1)
@@ -1000,7 +1633,17 @@ int main(int argc, char** argv)
 			printf("model=correlated\n");
 			printf("  correlation  = %f\n",modelstate.correlation);
 		}
-		
+
+		if (model == MODEL_MARKOV2P)
+		{
+			printf("model=markov_2_param\n");
+			printf("  bias         = %f\n",modelstate.bias);
+			printf("  correlation  = %f\n",modelstate.correlation);
+			printf("  p01          = %f\n",modelstate.p01);
+			printf("  p10          = %f\n",modelstate.p01);
+			
+		}
+				
 		if (model == MODEL_LCG)
 		{
 			printf("model=linear congruential generator\n");

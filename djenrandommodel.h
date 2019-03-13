@@ -42,7 +42,7 @@ typedef struct {
 		
 		double p01;
 		double p10;
-		
+		int bitwidth;
 		
 		unsigned long long lcg_a; /* LCG Model */
 		unsigned long long lcg_c;
@@ -120,7 +120,9 @@ typedef struct {
         int windowsrng;
 	} t_rngstate;
 
+void init_rng(t_rngstate* rngstate);
 int getrand16(t_rngstate* rngstate);
+uint64_t getrand64(t_rngstate* rngstate);
 double getNormal(t_modelstate *modelstate, t_rngstate* rngstate);
 
 /* entropysource(j,stepsize,v,seed); */

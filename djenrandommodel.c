@@ -157,6 +157,18 @@ int getrand16(t_rngstate* rngstate)
 	return(theint);
 }
 
+uint64_t getrand64(t_rngstate* rngstate) {
+    uint64_t therand;
+    int quarterrand;
+    int i;
+    
+    for(i=0;i<4;i++) {
+        quarterrand = getrand16(rngstate);
+        therand = (therand << 16) | (quarterrand & 0xffff);
+    }
+    return therand;
+}
+
 double getNormal(t_modelstate *modelstate, t_rngstate* rngstate)
 {
 	unsigned long int theint;
@@ -1060,8 +1072,7 @@ double normalsource(t_modelstate *modelstate, t_rngstate* rngstate)
 /* Init routines. Initializee the models */
 /*****************************************/
 
-void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
-{
+void init_rng(t_rngstate* rngstate) {
 	int i;
 	unsigned char realrand[16];
 	unsigned char out[16];
@@ -1080,15 +1091,6 @@ void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
         
         nondeterministic_bytes(16, realrand, rngstate);
         for (i=0;i<16;i++) rngstate->v[i] = rngstate->v[i] ^ realrand[i];
-        
-        //else /* Use /dev/random to read random data on Linux */
-        //{
-        //    fread(realrand, 16, 1 , rngstate->devrandom);
-        //    for (i=0;i<16;i++) rngstate->k[i] = rngstate->k[i] ^ realrand[i];
-        //
-        //    fread(realrand, 16, 1 , rngstate->devrandom);
-        //    for (i=0;i<16;i++) rngstate->v[i] = rngstate->v[i] ^ realrand[i];
-        //}
 	}
 
 	/* Make k and v head off into the weeds */
@@ -1098,17 +1100,33 @@ void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
 	aes128k128d(rngstate->k,rngstate->v,rngstate->kprime);
 	
 	rngstate->temp = 0;
-
-	modelstate->t = 0;
 	rngstate->reached_eof = 0;
 
+}
+
+void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
+{
+	unsigned char out[16];
+
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+		/*fread(rngstate->rngbits,16,1,rngstate->devrandom);*/
+	}
+	else
+	{
+		aes128k128d(rngstate->k,rngstate->v,out);
+		aes128k128d(out,rngstate->k,rngstate->rngbits);
+	}
+    
+	modelstate->t = 0;        
 }
 
 void pureinit(t_modelstate* modelstate, t_rngstate* rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1125,7 +1143,7 @@ void biasedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1142,7 +1160,7 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1160,7 +1178,7 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1178,7 +1196,7 @@ void sinbiasinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1268,14 +1286,14 @@ void fileinit(t_modelstate* modelstate, t_rngstate* rngstate)
 	rngstate->reached_eof = 0;
 	rngstate->filechar = 0x00;
 	rngstate->fileindex = 0;
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 }
 
 void normalinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
