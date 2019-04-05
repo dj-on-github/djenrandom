@@ -122,9 +122,10 @@ int check_is_intel() {
 	if(memcmp((char *)(&info.EBX), "Genu", 4) == 0 &&
 		memcmp((char *)(&info.EDX), "ineI", 4) == 0 &&
 		memcmp((char *)(&info.ECX), "ntel", 4) == 0) {
+            printf("Is Intel CPU\n");
 			return 1;
 	}
-    
+    printf("Is not Intel CPU\n");
     return 0;
 }
 
@@ -136,8 +137,10 @@ int check_is_amd() {
     if( memcmp((char *)(&info.EBX), "Auth", 4) == 0 &&
 		memcmp((char *)(&info.EDX), "enti", 4) == 0 &&
 		memcmp((char *)(&info.ECX), "cAMD", 4) == 0) {
+            printf("Is AMD CPU\n");
 			return 1;
 	}
+    //printf("Is not AMD CPU\n");
     return 0;
 }
 
@@ -145,8 +148,9 @@ int check_rdrand() {
     CPUIDinfo info;
    
     get_cpuid(&info,1,0);
-   
+    if ((info.ECX & 0x40000000)==0x40000000) printf("RdRand bit is set\n");
     if ((info.ECX & 0x40000000)==0x40000000) return 1;
+    //printf("RdRand bit is not set\n");
     return 0;
 }
 
@@ -155,8 +159,10 @@ int check_rdseed() {
    
     get_cpuid(&info,7,0);
    
-   if ((info.EBX & 0x00040000)==0x00040000) return 1;
-   return 0;
+    if ((info.EBX & 0x00040000)==0x00040000) printf("RdSeed bit is set\n");
+    if ((info.EBX & 0x00040000)==0x00040000) return 1;
+    //printf("RdSeed bit is not set\n");
+    return 0;
 }
 
 int check_aesni()

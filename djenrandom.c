@@ -1150,7 +1150,7 @@ int main(int argc, char** argv)
 
     /* Test for nondeterministic random source */
     
-	if (rngstate.randseed==1) {
+	//if (rngstate.randseed==1) {
         if (rdrand_check_support()==1) {    
             rngstate.rdrand_available=1;	
         }
@@ -1160,10 +1160,10 @@ int main(int argc, char** argv)
         else {
             rngstate.rdrand_available=0;
 		    rngstate.devurandom_available = 0;
-		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
-            exit(1);
+		    //fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+            //exit(1);
 		}
-	}
+	//}
     
     
     opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
@@ -1391,6 +1391,13 @@ int main(int argc, char** argv)
 		}
 	}
 
+    if (rngstate.randseed==1) {
+        if ((rngstate.rdrand_available==0) && (rngstate.devurandom_available==0)){
+		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+            exit(1);
+		}
+	}
+    
     /* start the RNG */
     init_rng(&rngstate);
     
