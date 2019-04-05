@@ -1,4 +1,4 @@
-smooth
+djenrandom
 
 Generates entropy according to the smooth model of the pp_drng entropy source. It includes separate left an right
 stepsizes, so that assymetry (leading to bias) in the hardware can be modelled.
@@ -48,13 +48,13 @@ The correlation parameter can be used to vary the correlation coefficient betwee
 
 By default it creates 1K of determinstic entropy with a stepsize of 0.1, using the ppdrng model, output to STDOUT in ASCII hex:
 
-	[djohnst1]$ smooth
+	$ djenrandom
 	AB87FD820CC26608456BF8C39F74B151
 	260A2D24CAC20D3FB6A7150492092D7F
 	6840D4BB8B485D396721498BD0CFCAD1
 	...
 
-	[djohnst1]$ smooth
+	$ djenrandom
 	AB87FD820CC26608456BF8C39F74B151
 	260A2D24CAC20D3FB6A7150492092D7F
 	6840D4BB8B485D396721498BD0CFCAD1
@@ -64,13 +64,13 @@ Note that they are the same.
 You can make it non deterministic with the -s option to see it from /dev/random. If you're on an intel linux box,
 start rngd to feed HW entropy into /dev/random. It will be a lot slower than the deterministic mode.
 
-	[djohnst1]$ smooth -s
+	$ djenrandom -s
 	E146393363CBECDAE83D5570493E768C
 	8C52C602B7AF3277C2B1183E63B773F2
 	F3CDC5929031B695415BFAB77531DA23
 	...
 
-	[djohnst1]$ smooth -s
+	$ djenrandom -s
 	A72BED65474B12B1D88B6828ECFB009C
 	B6F145D00A40C475CFD6C28FABC03277
 	8E91036402AE21B276A0670796446D94
@@ -78,7 +78,7 @@ start rngd to feed HW entropy into /dev/random. It will be a lot slower than the
 Note that they are different.
 
 It will tell you it's parameters if you include the -v option. Here you can see the default parameters.
-	[djohnst1]$ smooth -v
+	$ djenrandom  -v
 	Format=Hex
 	left stepsize  = 0.100000
 	right stepsize = 0.100000
@@ -94,7 +94,7 @@ The -x n option turns on the xor function of the ES. The number N is an integer 
 between the ES and the DRBG. E.G. -n 3 will cause 3 bits of entropy to be xored before 1 bit of entropy is
 output.
 
-	[djohnst1]$ smooth -v -x 3
+	$ djenrandom  -v -x 3
 	Format=Hex
 	left stepsize  = 0.100000
 	right stepsize = 0.100000
@@ -114,7 +114,7 @@ Examples:
 
 Output 1M of entropy to the file l0.1r0.12_1M, in binary, with an xor ratio of 3:1, a left_stepsize of 0.1 and a right stepsize of 0.12.
 
-	[djohnst1]$ smooth -v -l 0.1 -r 0.12 -k 1024 -x 3 -b -o l0.1r0.12_1M
+	$ djenrandom  -v -l 0.1 -r 0.12 -k 1024 -x 3 -b -o l0.1r0.12_1M
 	Format=Binary
 	left stepsize  = 0.100000
 	right stepsize = 0.120000
@@ -126,7 +126,7 @@ Output 1K of very high quality real, non deterministic entropy, using a 5:1 xor 
 We start the rngd demon first to feed the platform HW entropy to /dev/random. 
 
 	[djohnst1]$ rngd
-	[djohnst1]$ smooth -v -x 5 -s
+	$ djenrandom  -v -x 5 -s
 	Format=Hex
 	left stepsize  = 0.100000
 	right stepsize = 0.100000
@@ -145,5 +145,5 @@ ent -b <filename>
 entropyTest -t markov -i 1 -o 1 -s 9999 -g 9999 <filename>
 
 DJ
-djohnst1@intel.com
+dj.johnston@intel.com
 
