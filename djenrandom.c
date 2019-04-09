@@ -60,6 +60,15 @@
 #define P101_MAX 3
 #define P010_MAX 4
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
 int aesni_supported;
 int verbose_mode;
 
@@ -708,7 +717,7 @@ uint64_t most_probable_symbol(double p01, double p10,int bitwidth) {
     
 }
 
-double symbol_max_probability(double p01, double p10,int bitwidth) {
+double symbol_max_probability(double p01, double p10,int bitwidth,uint64_t *mcv) {
     double mu;
     double p00;
     double p11;
@@ -722,6 +731,7 @@ double symbol_max_probability(double p01, double p10,int bitwidth) {
     
     int bits[65];
     int i;
+    int j;
     
     for (i=0;i<65;i++) bits[i] = 0;
     
@@ -733,6 +743,7 @@ double symbol_max_probability(double p01, double p10,int bitwidth) {
     p11 = 1.0 - p10;
     
     mps = most_probable_symbol(p01,p10,bitwidth);
+    *mcv = mps;
     
     // unpack the symbol bits into an array of bits
     bits[0] = 0;   // first with x[-1]=0
@@ -740,42 +751,92 @@ double symbol_max_probability(double p01, double p10,int bitwidth) {
         bits[i+1] = (mps >> (bitwidth-1-i)) & 0x01;
     }
     
-    // Compute the symbol probability by going through the
-    // bits and multiplying the transition probabilities.
-    p_0mps = 1.0;
-    for (i=0;i<(bitwidth-1); i++) {
-        if      ((bits[i]==0) && (bits[i+1]==0)) p_0mps = p_0mps * p00;
-        else if ((bits[i]==0) && (bits[i+1]==1)) p_0mps = p_0mps * p01;
-        else if ((bits[i]==1) && (bits[i+1]==0)) p_0mps = p_0mps * p10;
-        else if ((bits[i]==1) && (bits[i+1]==1)) p_0mps = p_0mps * p11;  
-    }
-
     if (verbose_mode) {
-        fprintf(stderr,"   MCV BITS = ");
-        for (i=0; i<bitwidth;i++) {
-            fprintf(stderr,"%d",bits[i+1]);
+        fprintf(stderr,"   unrolled bits 0 prefix = ");
+        for(j=0;j<(bitwidth+1);j++) {
+            fprintf(stderr,"%d",bits[j]);
         }
         fprintf(stderr,"\n");
     }
-    bits[0] = 1;   // then with x[-1]=1
-    p_1mps = 1.0;
-    for (i=0;i<(bitwidth-1); i++) {
-        if      ((bits[i]==0) && (bits[i+1]==0)) p_1mps = p_1mps * p00;
-        else if ((bits[i]==0) && (bits[i+1]==1)) p_1mps = p_1mps * p01;
-        else if ((bits[i]==1) && (bits[i+1]==0)) p_1mps = p_1mps * p10;
-        else if ((bits[i]==1) && (bits[i+1]==1)) p_1mps = p_1mps * p11;  
-    }    
     
+    // Compute the symbol probability by going through the
+    // bits and multiplying the transition probabilities.
+    p_0mps = 1.0;
+    if (verbose_mode) fprintf(stderr,"   Prob = 1.0");
+    for (i=0;i<bitwidth; i++) {
+        if      ((bits[i]==0) && (bits[i+1]==0)) {
+            p_0mps = p_0mps * p00;
+            if (verbose_mode) fprintf(stderr, " * P00");
+        }
+        else if ((bits[i]==0) && (bits[i+1]==1)) {
+            p_0mps = p_0mps * p01;
+            if (verbose_mode) fprintf(stderr, " * P01");
+        }                     
+        else if ((bits[i]==1) && (bits[i+1]==0)) {
+            p_0mps = p_0mps * p10;
+            if (verbose_mode) fprintf(stderr, " * P10");
+        }
+        else if ((bits[i]==1) && (bits[i+1]==1)) {
+            p_0mps = p_0mps * p11;
+            if (verbose_mode) fprintf(stderr, " * P11");
+        }      
+    }    
+    if (verbose_mode) fprintf(stderr,"\n");
+
+    
+    bits[0] = 1;   // then with x[-1]=1
+    
+    if (verbose_mode) {
+        fprintf(stderr,"   unrolled bits 1 prefix = ");
+        for(j=0;j<(bitwidth+1);j++) {
+            fprintf(stderr,"%d",bits[j]);
+        }
+        fprintf(stderr,"\n");
+    }
+    
+    p_1mps = 1.0;
+    if (verbose_mode) fprintf(stderr,"   Prob = 1.0");
+    for (i=0;i<bitwidth; i++) {
+        if      ((bits[i]==0) && (bits[i+1]==0)) {
+            p_1mps = p_1mps * p00;
+            if (verbose_mode) fprintf(stderr, " * P00");
+        }
+        else if ((bits[i]==0) && (bits[i+1]==1)) {
+            p_1mps = p_1mps * p01;
+            if (verbose_mode) fprintf(stderr, " * P01");
+        }                     
+        else if ((bits[i]==1) && (bits[i+1]==0)) {
+            p_1mps = p_1mps * p10;
+            if (verbose_mode) fprintf(stderr, " * P10");
+        }
+        else if ((bits[i]==1) && (bits[i+1]==1)) {
+            p_1mps = p_1mps * p11;
+            if (verbose_mode) fprintf(stderr, " * P11");
+        }      
+    }    
+    if (verbose_mode) fprintf(stderr,"\n");
+    
+    if (verbose_mode) {
+        fprintf(stderr,"   %sMCV BITS = ",KRED);
+        for (i=0; i<bitwidth;i++) {
+            fprintf(stderr,"%d",bits[i+1]);
+        }
+        fprintf(stderr,"%s\n",KWHT);
+    }
+        
     p_mps = (p0 * p_0mps) + (p1 * p_1mps);
     return p_mps;
 }
     
     
-double p_to_entropy(double p01, double p10,int bitwidth) {
+double p_to_entropy(double p01, double p10,int bitwidth, double *mcv_prob, uint64_t *mcv) {
     double smp = 0.0;
     double ent;
+    uint64_t l_mcv;
     
-    smp = symbol_max_probability(p01, p10, bitwidth);
+    smp = symbol_max_probability(p01, p10, bitwidth, &l_mcv);
+    *mcv_prob = smp;
+    *mcv = l_mcv;
     
     ent = -log2(smp);
     return ent/bitwidth;
@@ -1022,7 +1083,9 @@ void pick_point(double *p01, double *p10, double desired, double epsilon, int bi
     double endpoint10;
     double choice01;
     double choice10;
+    double mcv_prob = -1.0;
     double Hc;
+    uint64_t mcv;
     
     double edge_entropy;
     
@@ -1038,7 +1101,7 @@ void pick_point(double *p01, double *p10, double desired, double epsilon, int bi
             *p10 = (double)chosen_side;
             *p01 = get_rand_double(rngstate);
         }
-        edge_entropy=p_to_entropy(*p01, *p10, bitwidth);
+        edge_entropy=p_to_entropy(*p01, *p10, bitwidth, &mcv_prob, &mcv);
         
     } while (edge_entropy > desired);
     
@@ -1049,7 +1112,7 @@ void pick_point(double *p01, double *p10, double desired, double epsilon, int bi
     
     choice01 = (startpoint01 + endpoint01)/2.0;
     choice10 = (startpoint10 + endpoint10)/2.0;
-    Hc = p_to_entropy(choice01, choice10, bitwidth);
+    Hc = p_to_entropy(choice01, choice10, bitwidth, &mcv_prob, &mcv);
     
     if (verbose_mode) {
     fprintf(stderr,"PICKING for entropy %f\n", desired);
@@ -1087,9 +1150,10 @@ void pick_point(double *p01, double *p10, double desired, double epsilon, int bi
         fprintf(stderr,"   mid P01 = %f\n", choice01);
         fprintf(stderr,"   mid P10 = %f\n", choice10);
         }
-        Hc = p_to_entropy(choice01,choice10,bitwidth);
+        Hc = p_to_entropy(choice01,choice10,bitwidth,&mcv_prob, &mcv);
         if (verbose_mode) {
             fprintf(stderr,"   Hc  = %f\n", Hc);
+            fprintf(stderr,"   %sMCV Probability = %f%s\n",KCYN,mcv_prob,KWHT);
             fflush(stdout);
         }
     }
