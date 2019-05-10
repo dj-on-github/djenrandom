@@ -36,6 +36,45 @@
 #define RIGHT_VARIANCE 1
 #define LEFT_VARIANCE 1
 
+uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate) {
+    uint64_t e;
+
+    e = start;
+    do {
+        if ((getrand64(rngstate) & 0x01) == 1) return e;
+        e = e-1;
+    } while (e > 0);
+    return ((uint64_t)0);
+}
+
+
+double get_rand_double(t_rngstate* rngstate) {
+    uint64_t start;
+    uint64_t mantissa;
+    uint64_t exponent;
+    uint64_t sign;
+    uint64_t x;
+    double *f;
+    double result;
+
+    start = 1022;
+    int i;
+    for (i=0;i<1000;i++) {
+        mantissa = (getrand64(rngstate) & 0x07ffffffffffff) | 0x08000000000000;
+        exponent = choose_exponent(start,rngstate);
+        //sign = getrand64(rngstate) & 0x01;
+        sign = 0;
+        x = (sign << 63) | ((exponent & 0x7ff) << 52) | mantissa;
+        f = (double *)&x;
+        //fprintf(stderr,"%f  exponent=%llu\n",*f,exponent);
+    }
+    result = *f;
+    //fprintf(stderr,"  GET_RAND_DOUBLT = %f\n",result);
+    fflush(stdout);
+    return result;
+}
+
+
 void nondeterministic_bytes(const size_t byte_len, void* byte_buf, t_rngstate *rngstate) {
     if (rngstate->rdrand_available) {
         rdrand_get_bytes_step(byte_len, byte_buf);
@@ -155,6 +194,18 @@ int getrand16(t_rngstate* rngstate)
 	}
 
 	return(theint);
+}
+
+uint64_t getrand64(t_rngstate* rngstate) {
+    uint64_t therand;
+    int quarterrand;
+    int i;
+    
+    for(i=0;i<4;i++) {
+        quarterrand = getrand16(rngstate);
+        therand = (therand << 16) | (quarterrand & 0xffff);
+    }
+    return therand;
 }
 
 double getNormal(t_modelstate *modelstate, t_rngstate* rngstate)
@@ -460,10 +511,10 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
 	p01_threshold = (int)p01_dthreshold;
     p10_threshold = (int)p10_dthreshold;
     
-    	    //printf("bias = %f\n",modelstate.bias);
-	        //printf("correlation = %f\n",modelstate.correlation);
-	        //printf("p01 = %f\n",p01);
-	        //printf("p10 = %f\n",p10);
+    	    //fprintf(stderr,"bias = %f\n",modelstate.bias);
+	        //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
+	        //fprintf(stderr,"p01 = %f\n",p01);
+	        //fprintf(stderr,"p10 = %f\n",p10);
 	        
 	if (modelstate->lastbit==1)
 	{
@@ -577,7 +628,7 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
         modelstate->lcg_output = modelstate->lcg_output >> 1;
         return (modelstate->lcg_output & 1);
     }
-    /* printf("End:  x = %llx, a = %llx, c = %llx, m = %llx\n",x,a,c,m); */
+    /* fprintf(stderr,"End:  x = %llx, a = %llx, c = %llx, m = %llx\n",x,a,c,m); */
     return (int)x;
 }
 
@@ -769,25 +820,25 @@ uint64_t pcg_xsh_rr(t_modelstate* modelstate, t_rngstate* rngstate) {
     case 16:
         current16 = ((modelstate->pcg16_state >> 5) ^ modelstate->pcg16_state) >> 5;
         rotate_amount =  modelstate->pcg16_state >> 13u;
-        /*printf("  16: in-%04x",(unsigned int)(current16)); */
+        /*fprintf(stderr,"  16: in-%04x",(unsigned int)(current16)); */
         current16 = rotate_uint8(current16,rotate_amount); 
-        /*printf("  %04x",(unsigned int)(current16)); */
+        /*fprintf(stderr,"  %04x",(unsigned int)(current16)); */
         return current16 % 256;
     case 32:
         current32 = ((modelstate->pcg32_state >> 10) ^ modelstate->pcg32_state) >> 12;
         rotate_amount =  modelstate->pcg32_state >> 28u;
-        /*printf("  32: in-%08x",(unsigned int)(current32));*/
+        /*fprintf(stderr,"  32: in-%08x",(unsigned int)(current32));*/
         current32 = rotate_uint16(current32,rotate_amount); 
-        /*printf("  %08x",(unsigned int)(current32));*/
+        /*fprintf(stderr,"  %08x",(unsigned int)(current32));*/
         return current32 & 0xffffffff;
     case 64:
         current64 = ((modelstate->pcg64_state >> 18) ^ modelstate->pcg64_state) >> 27;
         rotate_amount =  modelstate->pcg64_state >> 59u;
-        /*printf("  64: in-%016llx",(current64));*/
+        /*fprintf(stderr,"  64: in-%016llx",(current64));*/
         current64 = current64 & 0xffffffff;
         current64 = rotate_uint32(current64,rotate_amount); 
-        /*printf(" rot(%d) ",rotate_amount);
-        printf("  %016llx",(current64));*/
+        /*fprintf(stderr," rot(%d) ",rotate_amount);
+        fprintf(stderr,"  %016llx",(current64));*/
         return current64;
     }
     return 0;
@@ -807,21 +858,21 @@ int pcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
         /* Update the internal state */
         if (modelstate->pcg_alg == PCG_MCG) {
             pcg_mcg(modelstate,rngstate);
-            /*printf("New MCG 0x%016llx",modelstate->pcg64_state);*/
+            /*fprintf(stderr,"New MCG 0x%016llx",modelstate->pcg64_state);*/
         }
         else {
             pcg_lcg(modelstate,rngstate);  
-            /*printf("New LCG 0x%016llx",modelstate->pcg64_state); */  
+            /*fprintf(stderr,"New LCG 0x%016llx",modelstate->pcg64_state); */  
         } 
 
         /* Call the output function */
         if (modelstate->pcg_of == XSH_RS) {
             modelstate->pcg_output = pcg_xsh_rs(modelstate,rngstate);
-            /*printf("  RS 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
+            /*fprintf(stderr,"  RS 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
         }
         else if (modelstate->pcg_of == XSH_RR) {
             modelstate->pcg_output = pcg_xsh_rr(modelstate,rngstate);
-            /*printf("  RR 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
+            /*fprintf(stderr,"  RR 0x%08x\n",(unsigned int)(modelstate->pcg_output));*/
         }
         
            
@@ -1060,8 +1111,7 @@ double normalsource(t_modelstate *modelstate, t_rngstate* rngstate)
 /* Init routines. Initializee the models */
 /*****************************************/
 
-void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
-{
+void init_rng(t_rngstate* rngstate) {
 	int i;
 	unsigned char realrand[16];
 	unsigned char out[16];
@@ -1080,15 +1130,6 @@ void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
         
         nondeterministic_bytes(16, realrand, rngstate);
         for (i=0;i<16;i++) rngstate->v[i] = rngstate->v[i] ^ realrand[i];
-        
-        //else /* Use /dev/random to read random data on Linux */
-        //{
-        //    fread(realrand, 16, 1 , rngstate->devrandom);
-        //    for (i=0;i<16;i++) rngstate->k[i] = rngstate->k[i] ^ realrand[i];
-        //
-        //    fread(realrand, 16, 1 , rngstate->devrandom);
-        //    for (i=0;i<16;i++) rngstate->v[i] = rngstate->v[i] ^ realrand[i];
-        //}
 	}
 
 	/* Make k and v head off into the weeds */
@@ -1098,17 +1139,33 @@ void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
 	aes128k128d(rngstate->k,rngstate->v,rngstate->kprime);
 	
 	rngstate->temp = 0;
-
-	modelstate->t = 0;
 	rngstate->reached_eof = 0;
 
+}
+
+void smoothinit(t_modelstate* modelstate, t_rngstate* rngstate)
+{
+	unsigned char out[16];
+
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+		/*fread(rngstate->rngbits,16,1,rngstate->devrandom);*/
+	}
+	else
+	{
+		aes128k128d(rngstate->k,rngstate->v,out);
+		aes128k128d(out,rngstate->k,rngstate->rngbits);
+	}
+    
+	modelstate->t = 0;        
 }
 
 void pureinit(t_modelstate* modelstate, t_rngstate* rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1125,7 +1182,7 @@ void biasedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1142,7 +1199,7 @@ void correlatedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1160,7 +1217,7 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1178,7 +1235,7 @@ void sinbiasinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
@@ -1268,14 +1325,14 @@ void fileinit(t_modelstate* modelstate, t_rngstate* rngstate)
 	rngstate->reached_eof = 0;
 	rngstate->filechar = 0x00;
 	rngstate->fileindex = 0;
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 }
 
 void normalinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
 	unsigned char out[16];
 
-	smoothinit(modelstate, rngstate);
+	//smoothinit(modelstate, rngstate);
 	if (rngstate->randseed==1)
 	{
 	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);

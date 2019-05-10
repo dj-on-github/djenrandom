@@ -29,6 +29,8 @@
 #include <string.h>
 #include "aes128k128d.h"
 
+extern int verbose_mode;
+
 typedef struct {
         unsigned int EAX;
         unsigned int EBX;
@@ -122,9 +124,10 @@ int check_is_intel() {
 	if(memcmp((char *)(&info.EBX), "Genu", 4) == 0 &&
 		memcmp((char *)(&info.EDX), "ineI", 4) == 0 &&
 		memcmp((char *)(&info.ECX), "ntel", 4) == 0) {
+            if (verbose_mode) fprintf(stderr,"Is Intel CPU\n");
 			return 1;
 	}
-    
+    if (verbose_mode) fprintf(stderr,"Is not Intel CPU\n");
     return 0;
 }
 
@@ -136,8 +139,10 @@ int check_is_amd() {
     if( memcmp((char *)(&info.EBX), "Auth", 4) == 0 &&
 		memcmp((char *)(&info.EDX), "enti", 4) == 0 &&
 		memcmp((char *)(&info.ECX), "cAMD", 4) == 0) {
+            if (verbose_mode) fprintf(stderr,"Is AMD CPU\n");
 			return 1;
 	}
+    if (verbose_mode) fprintf(stderr,"Is not AMD CPU\n");
     return 0;
 }
 
@@ -145,8 +150,11 @@ int check_rdrand() {
     CPUIDinfo info;
    
     get_cpuid(&info,1,0);
-   
+    if (verbose_mode) {
+        if ((info.ECX & 0x40000000)==0x40000000) fprintf(stderr,"RdRand bit is set\n");
+    }
     if ((info.ECX & 0x40000000)==0x40000000) return 1;
+    //fprintf(stderr,"RdRand bit is not set\n");
     return 0;
 }
 
@@ -155,8 +163,12 @@ int check_rdseed() {
    
     get_cpuid(&info,7,0);
    
-   if ((info.EBX & 0x00040000)==0x00040000) return 1;
-   return 0;
+    if (verbose_mode) {
+        if ((info.EBX & 0x00040000)==0x00040000) fprintf(stderr,"RdSeed bit is set\n");
+    }
+    if ((info.EBX & 0x00040000)==0x00040000) return 1;
+    //fprintf(stderr,"RdSeed bit is not set\n");
+    return 0;
 }
 
 int check_aesni()

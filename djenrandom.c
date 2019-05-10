@@ -37,6 +37,7 @@
 #include <getopt.h>
 #include <string.h>
 #include "rdrand.h"
+#include "markov2p.h"
 
 #define MODEL_SUMS 0
 #define MODEL_PURE 1
@@ -54,7 +55,17 @@
 #define INFORMAT_HEX 1
 #define INFORMAT_BINARY 2
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
 int aesni_supported;
+int verbose_mode;
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
@@ -97,6 +108,7 @@ fprintf(stderr,"  --bias=<0.0 to 1.0>               The ones probability, defaul
 fprintf(stderr,"  --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0\n");
 fprintf(stderr,"         or\n");
 fprintf(stderr,"  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0\n");
+fprintf(stderr,"  --bitwidth=<3 to 64>      The number of bits per symbol\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -173,7 +185,7 @@ double bias2entropy(double bias)
 	{
 		result = -(bias)*logtwo(bias) -((1.0L-bias)*logtwo(1.0L-bias));
 	
-		if (isnan(result)) printf(" Got NAN in bias2entropy bias=%f\n",bias);
+		if (isnan(result)) fprintf(stderr," Got NAN in bias2entropy bias=%f\n",bias);
 	}
 	return(result);
 }
@@ -190,7 +202,7 @@ double xorbias_2bit(double pa1, double pb1)
 
 	result = (pa0 * pb1) + (pa1 * pb0);
 
-	if (isnan(result)) printf(" Got NAN in xorbias_2bit\n");
+	if (isnan(result)) fprintf(stderr," Got NAN in xorbias_2bit\n");
 	return(result);
 }
 
@@ -209,7 +221,7 @@ double xorbias_3bit(double pa1, double pb1, double pc1)
 	/* Sum the joint probabilities of all the odd parity patterns. */
 	result = (pa0 * pb0 * pc1) + (pa0 * pb1 * pc0) + (pa1 * pb0 * pc0) + (pa1 * pb1 * pc1);
 
-	if (isnan(result)) printf(" Got NAN in xorbias_3bit\n");
+	if (isnan(result)) fprintf(stderr," Got NAN in xorbias_3bit\n");
 	return(result);
 }
 
@@ -339,8 +351,6 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	}
 }
 
-
-
 /********
 * main() is mostly about parsing and qualifying the command line options. The argtable2 linrary is used to help with this.
 */
@@ -362,7 +372,7 @@ int main(int argc, char** argv)
     int bits_per_byte;
 	int xormode;
 	int xorbits;
-	int verbose_mode;
+	//int verbose_mode;
 	int kilobytes;
 	int no_k=1;
 	int ofile;
@@ -384,7 +394,7 @@ int main(int argc, char** argv)
 	double postxor_entropy;
 	double total_entropy;
 	double prob;
-
+    
 	int samplenum;
 	int simrun;
 	unsigned char thesample[256];
@@ -395,10 +405,13 @@ int main(int argc, char** argv)
 
     int gotcorrelation;
     int gotbias;
-    /* int gotmean; */
+    //int gotmean;
     int gotp01;
     int gotp10;
     int gotentropy;
+    //int gotbitwidth;
+    
+    double epsilon;
     
 	/* Defaults */
 	binary_mode = 0; /* binary when 1, hex when 0 */
@@ -423,10 +436,11 @@ int main(int argc, char** argv)
 	
 	gotcorrelation = 0;
     gotbias = 0;
-    /* gotmean = 0;*/
+    //gotmean = 0;
     gotp01 = 0;
     gotp10 = 0;
     gotentropy = 0;
+    //gotbitwidth = 0;
     
 	modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
     modelstate.lcg_c = 11ULL;
@@ -460,7 +474,8 @@ int main(int argc, char** argv)
 	modelstate.sums_bias = 0.0;
 	modelstate.p01 = 0.5;
 	modelstate.p10 = 0.5;
-	
+	modelstate.bitwidth=4;
+    
 	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
 	postxor_entropy = 0.0;
@@ -495,6 +510,7 @@ int main(int argc, char** argv)
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
     { "p10", required_argument, NULL, 0 },
+    { "bitwidth", required_argument, NULL, 0 },
     { "entropy", required_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
@@ -539,6 +555,24 @@ int main(int argc, char** argv)
     { NULL, no_argument, NULL, 0 }
     };
 
+    /* Test for nondeterministic random source */
+    
+	//if (rngstate.randseed==1) {
+        if (rdrand_check_support()==1) {    
+            rngstate.rdrand_available=1;	
+        }
+        else if ((rngstate.devrandom =  fopen("/dev/urandom", "r")) !=NULL) {
+            rngstate.devurandom_available = 1;
+        }
+        else {
+            rngstate.rdrand_available=0;
+		    rngstate.devurandom_available = 0;
+		    //fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+            //exit(1);
+		}
+	//}
+    
+    
     opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
     while( opt != -1 ) {
         switch( opt ) {
@@ -592,7 +626,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"01")==0) input_format=INFORMAT_01;
                 else
                 {
-                    printf("Input file format %s not recognized. Choose from binary, hex or 01.\n",optarg);
+                    fprintf(stderr,"Input file format %s not recognized. Choose from binary, hex or 01.\n",optarg);
                     exit(1);
                 }
                 rngstate.input_format = input_format;
@@ -612,7 +646,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
                 {
-                    printf("model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, normal or file.\n",optarg);
+                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, normal or file.\n",optarg);
                     exit(1);
                 }
                 break; 
@@ -667,7 +701,7 @@ int main(int argc, char** argv)
                 }
                 if( strcmp( "mean", longOpts[longIndex].name ) == 0 ) {
                     modelstate.mean = atof(optarg);
-                    /*gotmean=1;*/
+                    //gotmean=1;
                 }
                 if( strcmp( "variance", longOpts[longIndex].name ) == 0 ) {
                     modelstate.variance = atof(optarg);
@@ -728,7 +762,11 @@ int main(int argc, char** argv)
                     modelstate.p10 = atof(optarg);
                     gotp10 = 1;
                 }
-                
+                if( strcmp( "bitwidth", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.bitwidth = atoi(optarg);
+                    //gotbitwidth = 1;
+                }
+                                
                 break;
             case 'h':   /* fall-through is intentional */
             case '?':
@@ -760,6 +798,16 @@ int main(int argc, char** argv)
 		}
 	}
 
+    if (rngstate.randseed==1) {
+        if ((rngstate.rdrand_available==0) && (rngstate.devurandom_available==0)){
+		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+            exit(1);
+		}
+	}
+    
+    /* start the RNG */
+    init_rng(&rngstate);
+    
 	/* Range check the var args */
 
 	abort = 0;
@@ -767,28 +815,28 @@ int main(int argc, char** argv)
 	{
 		if (gotxmin != gotxmax)
 		{
-			printf("Error: -y and -z (xor_min and xor_max) must be used together or not at all\n");
+			fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be used together or not at all\n");
 			abort = 1;
 		}
 		if (xmin == xmax)
 		{
-			printf("Error: -y and -z (xor_min and xor_max) must be different and positive\n");
+			fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be different and positive\n");
 			abort = 1;
 		}
 		if (xmin < 1)
 		{
-			printf("Error: -y (xor min) must be 1 or greater. Provided value = %d\n",xmin);
+			fprintf(stderr,"Error: -y (xor min) must be 1 or greater. Provided value = %d\n",xmin);
 			abort = 1;
 		}
 		if (xmax < 1)
 		{
-			printf("Error: -z (xor max) must be 1 or greater. Provided value = %d\n",xmax);
+			fprintf(stderr,"Error: -z (xor max) must be 1 or greater. Provided value = %d\n",xmax);
 			abort = 1;
 		}
 
 		if (xormode==1)
 		{
-			printf("Error: -x (xor ratio) cannot be used with the XOR range (-y, -z) options");
+			fprintf(stderr,"Error: -x (xor ratio) cannot be used with the XOR range (-y, -z) options");
 			abort = 1;
 		}
 
@@ -796,130 +844,144 @@ int main(int argc, char** argv)
 
 	if ((bits_per_byte != 1) && (bits_per_byte != 2) && (bits_per_byte != 4) && (bits_per_byte != 8))
 	{
-        	printf("Error: -b -bpb = %d. Bits per byte must be 1, 2, 4 or 8.\n",bits_per_byte);
+        	fprintf(stderr,"Error: -b -bpb = %d. Bits per byte must be 1, 2, 4 or 8.\n",bits_per_byte);
         	abort=1;
 	}
 	if (rngstate.c_max < 1)
 	{
-        	printf("Error: -c n: cmax must be an integer of 1 or greater. Supplied value = %d\n",rngstate.c_max);
+        	fprintf(stderr,"Error: -c n: cmax must be an integer of 1 or greater. Supplied value = %d\n",rngstate.c_max);
         	abort=1;
 	}
 
 	if (xorbits < 1)
 	{
-        	printf("Error: -x n: XOR ratio out of bounds. n must be an integer of 1 or greater. Supplied value = %d\n",xorbits);
+        	fprintf(stderr,"Error: -x n: XOR ratio out of bounds. n must be an integer of 1 or greater. Supplied value = %d\n",xorbits);
         	abort=1;
         }
 
     if (modelstate.sinbias_period < 4)
     {
-        	printf("Error: --sinbiad_period=%" PRId64 ": Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
+        	fprintf(stderr,"Error: --sinbiad_period=%" PRId64 ": Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
         	abort=1;
     }
     
 	if (modelstate.left_stepsize == 0.0)
 	{
-        	printf("Error: -l n: left stepsize cannot be 0.0. Supplied value = %f\n",modelstate.left_stepsize);
+        	fprintf(stderr,"Error: -l n: left stepsize cannot be 0.0. Supplied value = %f\n",modelstate.left_stepsize);
         	abort=1;
     }
 	if (modelstate.right_stepsize == 0.0)
 	{
-        	printf("Error: -l n: right stepsize cannot be 0.0 . Supplied value = %f\n",modelstate.right_stepsize);
+        	fprintf(stderr,"Error: -l n: right stepsize cannot be 0.0 . Supplied value = %f\n",modelstate.right_stepsize);
         	abort=1;
         }
 	if (modelstate.left_stepsize < 0.0)
 	{
-        	printf("Error: -l n: left stepsize cannot be negative. Supplied value = %f\n",modelstate.left_stepsize);
+        	fprintf(stderr,"Error: -l n: left stepsize cannot be negative. Supplied value = %f\n",modelstate.left_stepsize);
         	abort=1;
         }
 	if (modelstate.right_stepsize < 0.0)
 	{
-        	printf("Error: -l n: right stepsize cannot be negative . Supplied value = %f\n",modelstate.right_stepsize);
+        	fprintf(stderr,"Error: -l n: right stepsize cannot be negative . Supplied value = %f\n",modelstate.right_stepsize);
         	abort=1;
         }
 	if (modelstate.stepnoise < 0.0)
 	{
-        	printf("Error: --stepnoise n: stepnoise cannot be negative . Supplied value = %f\n",modelstate.stepnoise);
+        	fprintf(stderr,"Error: --stepnoise n: stepnoise cannot be negative . Supplied value = %f\n",modelstate.stepnoise);
         	abort=1;
 	}
 	if ((modelstate.bias < 0.0) || (modelstate.bias >1.0))
 	{
-		printf("Error: --bias n: bias must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.bias);
+		fprintf(stderr,"Error: --bias n: bias must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.bias);
 		abort=1;
 	}
 
 	if ((modelstate.correlation < -1.0) || (modelstate.correlation >1.0))
 	{
-		printf("Error: --correlation n: correlation must be between -1.0 and 1.0. Supplied value = %f\n",modelstate.correlation);
+		fprintf(stderr,"Error: --correlation n: correlation must be between -1.0 and 1.0. Supplied value = %f\n",modelstate.correlation);
 		abort=1;
 	}
 	
 	if ((modelstate.p01 < 0.0) || (modelstate.p01 >1.0))
 	{
-		printf("Error: --p01 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p01);
+		fprintf(stderr,"Error: --p01 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p01);
 		abort=1;
 	}
 	if ((modelstate.p10 < 0.0) || (modelstate.p10 >1.0))
 	{
-		printf("Error: --p10 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p10);
+		fprintf(stderr,"Error: --p10 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p10);
 		abort=1;
 	}
 		
 	if (kilobytes < 1)
 	{
-        	printf("Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
+        	fprintf(stderr,"Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
         	abort=1;
         }
 	if ((width >256) || (width < 1))
 	{
-		printf("Error: Width must be from 1 to 256\n");
+		fprintf(stderr,"Error: Width must be from 1 to 256\n");
 		abort = 1;	
 	} 
 	if (model==MODEL_PCG) {
 	    if ((modelstate.pcg_state_size != 16) && (modelstate.pcg_state_size != 32)
 	          && (modelstate.pcg_state_size != 64) && (modelstate.pcg_state_size != 128)) {
-	        printf("Error: A pcg_size must be one of 16, 32, 64 or 128\n");
+	        fprintf(stderr,"Error: A pcg_size must be one of 16, 32, 64 or 128\n");
 	        exit(1);
 	    }    
 	}
 	if (model==MODEL_XORSHIFT) {
 	    if ((modelstate.xorshift_size != 32) &&  (modelstate.xorshift_size != 128)) {
-	        printf("Error: A xorshift_size must be one of 32 or 128\n");
+	        fprintf(stderr,"Error: A xorshift_size must be one of 32 or 128\n");
 	        exit(1);
 	    }    
 	}
 	if (model==MODEL_MARKOV2P) {
 	    if (((gotcorrelation==1) || (gotbias==1)) &&  ((gotp01) || (gotp10))) {
-	        printf("Error: Cannot give both correlation,bias and p01,p10 parameters with Markov model\n");
+	        fprintf(stderr,"Error: Cannot give both correlation,bias and p01,p10 parameters with Markov model\n");
 	        exit(1);
 	    }    
 	    if (((gotcorrelation==1) || (gotbias==1)) &&  (gotentropy)) {
-	        printf("Error: Cannot give both correlation,bias and entropy parameters with Markov model\n");
+	        fprintf(stderr,"Error: Cannot give both correlation,bias and entropy parameters with Markov model\n");
 	        exit(1);
 	    }  
 	    if (((gotp01==1) || (gotp10==1)) &&  (gotentropy)) {
-	        printf("Error: Cannot give both p01,p10 and entropy parameters with Markov model\n");
+	        fprintf(stderr,"Error: Cannot give both p01,p10 and entropy parameters with Markov model\n");
 	        exit(1);
 	    }  
 	    
 	    // Deal with the 3 parameter types
-	    if ((gotbias == 1) || (gotcorrelation==1)) {
-	        if (gotbias==0) modelstate.bias = 0.5;
-	        if (gotcorrelation==0) modelstate.correlation = 0.0;
+	    if (gotentropy==1) {
+            epsilon = pow(2.0,-50);
+            pick_point(&(modelstate.p01),&(modelstate.p10),modelstate.entropy,epsilon,modelstate.bitwidth,&rngstate);
+            modelstate.bias = modelstate.p01/(modelstate.p10+modelstate.p01);
+            modelstate.correlation = 1.0 - modelstate.p01 - modelstate.p10;   
+        }
+        else if ((gotbias == 1) || (gotcorrelation==1)) {
+	        if (gotbias==0){
+                 modelstate.bias = 0.5;
+            }
+	        
+            if (gotcorrelation==0) {
+                modelstate.correlation = 0.0;
+            }
 	        modelstate.p01 = modelstate.bias * (1.0 - modelstate.correlation);
 	        modelstate.p10 = (1.0-modelstate.bias)*(1.0-modelstate.correlation);
-	        //printf("bias = %f\n",modelstate.bias);
-	        //printf("correlation = %f\n",modelstate.correlation);
-	        //printf("p01 = %f\n",modelstate.p01);
-	        //printf("p10 = %f\n",modelstate.p10);
+	        //fprintf(stderr,"bias = %f\n",modelstate.bias);
+	        //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
+	        //fprintf(stderr,"p01 = %f\n",modelstate.p01);
+	        //fprintf(stderr,"p10 = %f\n",modelstate.p10);
 	    } else if ((gotp01 == 1) || (gotp10==1))  {
 	    	if (gotp01==0) modelstate.p01 = 0.5;
 	        if (gotp10==0) modelstate.p10 = 0.5;
+            modelstate.bias = modelstate.p01/(modelstate.p10+modelstate.p01);
+            modelstate.correlation = 1.0 - modelstate.p01 - modelstate.p10;           
 	    } else if (gotentropy==0) {
 	        modelstate.entropy = 1.0;
-	        // This one is more difficult - there is more than one value for p01,p10
-	        // for each value of entropy.
-	        // [TBD]
+            modelstate.p01 = 0.5;
+            modelstate.p10 = 0.5;
+            modelstate.bias = 0.5;
+            modelstate.correlation = 0.0;
 	    }
 	    
 	    
@@ -927,7 +989,7 @@ int main(int argc, char** argv)
 	}
 	if (model==MODEL_FILE) {
 		if (modelstate.using_infile == 0) {
-			printf("Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
+			fprintf(stderr,"Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
 		abort = 1;
 		} 
 	}
@@ -935,162 +997,158 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-    /* Test for nondeterministic random source */
-    
-	if (rngstate.randseed==1) {
-        if (rdrand_check_support()==1) {    
-            rngstate.rdrand_available=1;	
-        }
-        else if ((rngstate.devrandom =  fopen("/dev/urandom", "r")) !=NULL) {
-            rngstate.devurandom_available = 1;
-        }
-        else {
-            rngstate.rdrand_available=0;
-		    rngstate.devurandom_available = 0;
-		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
-            exit(1);
-		}
-	}
+
 	
 	/* Print out the job parameters */
 	if (verbose_mode==1)
 	{
         if (aesni_check_support() == 1)
-            printf("AESNI Supported in instruction set\n");
+            fprintf(stderr,"AESNI Supported in instruction set\n");
         else
-            printf("AESNI Not supported in instruction set\n");
+            fprintf(stderr,"AESNI Not supported in instruction set\n");
  
 		if (binary_mode == 0)
-			printf("Format=Hex\n");
+			fprintf(stderr,"Format=Hex\n");
 		else
-			printf("Format=Binary\n");
+			fprintf(stderr,"Format=Binary\n");
 
 		if (model == MODEL_SUMS)
 		{
-			printf("model=sums\n");
-			printf("  left stepsize  = %f\n",modelstate.left_stepsize);
-			printf("  right stepsize = %f\n",modelstate.right_stepsize);
+			fprintf(stderr,"model=sums\n");
+			fprintf(stderr,"  left stepsize  = %f\n",modelstate.left_stepsize);
+			fprintf(stderr,"  right stepsize = %f\n",modelstate.right_stepsize);
 			if (modelstate.using_stepnoise==0)
 			{
-				printf("  Not adding noise to stepsize\n");
+				fprintf(stderr,"  Not adding noise to stepsize\n");
 			}
 			else
-				printf("  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
+				fprintf(stderr,"  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
 		}
 
 		if (model == MODEL_PURE)
 		{
-			printf("model=pure\n");
+			fprintf(stderr,"model=pure\n");
 		}
 
 		if (model == MODEL_BIASED)
 		{
-			printf("model=biased\n");
-			printf("  bias  = %f\n",modelstate.bias);
+			fprintf(stderr,"model=biased\n");
+			fprintf(stderr,"  bias  = %f\n",modelstate.bias);
 		}
 
 		if (model == MODEL_CORRELATED)
 		{
-			printf("model=correlated\n");
-			printf("  correlation  = %f\n",modelstate.correlation);
+			fprintf(stderr,"model=correlated\n");
+			fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
 		}
 
-		if (model == MODEL_CORRELATED)
+		if (model == MODEL_MARKOV2P)
 		{
-			printf("model=correlated\n");
-			printf("  correlation  = %f\n",modelstate.correlation);
+            double entropy;
+            double lmcv_prob;
+            uint64_t lmcv;
+
+            entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
+			fprintf(stderr,"model=markov_2_param\n");
+			fprintf(stderr,"  bias         = %f\n",modelstate.bias);
+			fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
+			fprintf(stderr,"  p01          = %f\n",modelstate.p01);
+			fprintf(stderr,"  p10          = %f\n",modelstate.p10);
+			fprintf(stderr,"  entropy      = %f\n",entropy);
+			fprintf(stderr,"  MCV Prob     = %f\n",lmcv_prob);
+			
 		}
-		
+				
 		if (model == MODEL_LCG)
 		{
-			printf("model=linear congruential generator\n");
-			printf("  a  = 0x%llx\n",modelstate.lcg_a);
-			printf("  c  = 0x%llx\n",modelstate.lcg_c);
-			printf("  m  = 0x%llx\n",modelstate.lcg_m);
-			printf("  start x = 0x%llx\n",modelstate.lcg_x % modelstate.lcg_m);
-			printf("  Output bit field = %d:%d\n",
+			fprintf(stderr,"model=linear congruential generator\n");
+			fprintf(stderr,"  a  = 0x%llx\n",modelstate.lcg_a);
+			fprintf(stderr,"  c  = 0x%llx\n",modelstate.lcg_c);
+			fprintf(stderr,"  m  = 0x%llx\n",modelstate.lcg_m);
+			fprintf(stderr,"  start x = 0x%llx\n",modelstate.lcg_x % modelstate.lcg_m);
+			fprintf(stderr,"  Output bit field = %d:%d\n",
 			        (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
 		}
 		if (model == MODEL_PCG)
 		{
-			printf("model=permuted congruential generator\n");
-			printf("  state size = %d\n",modelstate.pcg_state_size);
+			fprintf(stderr,"model=permuted congruential generator\n");
+			fprintf(stderr,"  state size = %d\n",modelstate.pcg_state_size);
 			if (modelstate.pcg_alg == PCG_MCG)
-			    printf("  State update algorithm MCG\n");
+			    fprintf(stderr,"  State update algorithm MCG\n");
 			else if (modelstate.pcg_alg == PCG_LCG)
-			    printf("  State update algorithm LCG\n");
+			    fprintf(stderr,"  State update algorithm LCG\n");
 			else
-			    printf("  Unknown State Update Function %d\n", modelstate.pcg_alg);
+			    fprintf(stderr,"  Unknown State Update Function %d\n", modelstate.pcg_alg);
 			        
 			if (modelstate.pcg_of == XSH_RS)
-			    printf("  Output function XSH_RS\n");
+			    fprintf(stderr,"  Output function XSH_RS\n");
 			else if (modelstate.pcg_of == XSH_RR)
-			    printf("  Output function XSH_RR\n");
+			    fprintf(stderr,"  Output function XSH_RR\n");
 			else
-			    printf("  Unknown Output function %d\n", modelstate.pcg_of);
+			    fprintf(stderr,"  Unknown Output function %d\n", modelstate.pcg_of);
 		}
 		if (model == MODEL_XORSHIFT)	
 		{
-			printf("model=XORSHIFT\n");
+			fprintf(stderr,"model=XORSHIFT\n");
 		}	
 		if (model == MODEL_NORMAL)
 		{
-			printf("model=normal\n");
-			printf("  mean  = %f\n",modelstate.mean);
-			printf("  variance  = %f\n",modelstate.variance);
+			fprintf(stderr,"model=normal\n");
+			fprintf(stderr,"  mean  = %f\n",modelstate.mean);
+			fprintf(stderr,"  variance  = %f\n",modelstate.variance);
 		}
 
 		if (model == MODEL_FILE)
 		{
-			printf("model=file\n");
-			printf("  filename  = %s\n",infilename);
+			fprintf(stderr,"model=file\n");
+			fprintf(stderr,"  filename  = %s\n",infilename);
 			if (rngstate.input_format == INFORMAT_HEX)
-			    printf("  File input format Hex\n");
+			    fprintf(stderr,"  File input format Hex\n");
 			else if (rngstate.input_format == INFORMAT_BINARY)
-			    printf("  File input format Binary\n");
+			    fprintf(stderr,"  File input format Binary\n");
 			else if (rngstate.input_format == INFORMAT_01 )
-			    printf("  File input format ASCII Binary\n");
+			    fprintf(stderr,"  File input format ASCII Binary\n");
 			else
-			    printf("  Unknown input format :%d\n",rngstate.input_format);
+			    fprintf(stderr,"  Unknown input format :%d\n",rngstate.input_format);
 		}
 
-		printf("size = %d kilobytes\n", kilobytes);
+		fprintf(stderr,"size = %d kilobytes\n", kilobytes);
 
 		if (xormode == 1)
-			printf("XOR mode on, fixed ratio=%d:1\n",xorbits);
+			fprintf(stderr,"XOR mode on, fixed ratio=%d:1\n",xorbits);
 		else
-			printf("XOR mode off\n");
+			fprintf(stderr,"XOR mode off\n");
 
 		if (using_xor_range == 1)
-			printf("XOR range mode on, ratios between %d:1 and %d:1, chosen randomly\n",xmin, xmax);
+			fprintf(stderr,"XOR range mode on, ratios between %d:1 and %d:1, chosen randomly\n",xmin, xmax);
 		else
-			printf("XOR range mode off\n");
+			fprintf(stderr,"XOR range mode off\n");
 
 		if (ofile == 0)
-			printf("Output to STDOUT\n");
+			fprintf(stderr,"Output to STDOUT\n");
 		else
-			printf("Output to file %s\n",filename);
+			fprintf(stderr,"Output to file %s\n",filename);
 
 		if (rngstate.randseed==1)
 		{
-			printf("Hardware Random Seeding on. Non deterministic mode\n");
-			printf("  Reseed c_max=%d\n",rngstate.c_max);
+			fprintf(stderr,"Hardware Random Seeding on. Non deterministic mode\n");
+			fprintf(stderr,"  Reseed c_max=%d\n",rngstate.c_max);
 			if (rngstate.rdrand_available) {
-			    printf("  Using RdRand as nondeterministic source\n");
+			    fprintf(stderr,"  Using RdRand as nondeterministic source\n");
 			}
 			else if(rngstate.devurandom_available) {
-			    printf("  Using /dev/urandom as nondeterministic source");
+			    fprintf(stderr,"  Using /dev/urandom as nondeterministic source");
 			}   
 		}
 		else
 		{
-			printf("Hardware Random Seeding off. Deterministic mode.\n");
-			printf("  Restir c_max=%d\n",rngstate.c_max);
+			fprintf(stderr,"Hardware Random Seeding off. Deterministic mode.\n");
+			fprintf(stderr,"  Restir c_max=%d\n",rngstate.c_max);
 		}
 		
 		if (modelstate.using_jfile==1)
 		{
-			printf("Outputting internal per bit bias to file %s\n",jfilename);
+			fprintf(stderr,"Outputting internal per bit bias to file %s\n",jfilename);
 		}
 	}
 
@@ -1130,7 +1188,7 @@ int main(int argc, char** argv)
 		else
 		{
 			if (verbose_mode ==1)
-				printf("opened input file %s for reading\n",infilename);
+				fprintf(stderr,"opened input file %s for reading\n",infilename);
 		}
 	}
 
@@ -1174,7 +1232,7 @@ int main(int argc, char** argv)
 				{
 					for (j=0;j<256;j++)
 					{
-						printf("%0.8f\n",floatingpointsamples[j]);
+						fprintf(stdout,"%0.8f\n",floatingpointsamples[j]);
 					}
 				}
 				else if (ofile == 1 && binary_mode == 0) /* Floatingpoint text to a file */
@@ -1246,11 +1304,11 @@ int main(int argc, char** argv)
 							thebit = entropysource(model, &modelstate, &rngstate);
 							if (rngstate.reached_eof == 1) {
 							    if ((samplenum > 0) && (samplenum < 256)) {
-							        /*printf("reached EOF with samplenum > 0 = %d\n",samplenum);*/
+							        /*fprintf(stderr,"reached EOF with samplenum > 0 = %d\n",samplenum);*/
 							        goto eof_with_partial_block;
 							    }
 							    else {
-							        /*printf("Going to EOF with full block. samplenum = %d\n",samplenum);*/
+							        /*fprintf(stderr,"Going to EOF with full block. samplenum = %d\n",samplenum);*/
 							        goto reached_eof;
 							    }
 							}
@@ -1313,7 +1371,7 @@ int main(int argc, char** argv)
 				else if (ofile == 0 && binary_mode == 0) /* hex to stdout */
 				{
 					tempindex = 0;
-                    /* printf(" Samplenum %d\n",samplenum);*/
+                    /* fprintf(stderr," Samplenum %d\n",samplenum);*/
                     do {
                         printf("%02X",thesample[tempindex++]);
                         lineindex++;
@@ -1337,7 +1395,7 @@ int main(int argc, char** argv)
                             lineindex = 0;
                         }
                     } while (tempindex < samplenum);
-                    if (lineindex != 0) printf("\n");
+                    if (lineindex != 0) fprintf(fp,"\n");
 				}
 				else /* binary to stdout */
 				{
@@ -1381,8 +1439,8 @@ int main(int argc, char** argv)
 		
 		if (verbose_mode ==1)
 		{
-			printf("Total Entropy = %F\n",total_entropy);
-			printf("Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));
+			fprintf(stderr,"Total Entropy = %F\n",total_entropy);
+			fprintf(stderr,"Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));
 		}
 	}
 	return 0;
