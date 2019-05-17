@@ -520,7 +520,7 @@ int main(int argc, char** argv)
     { "noaesni", no_argument, NULL, 'n' },
     { "cmax", required_argument, NULL, 'c' },
     { "model", required_argument, NULL, 'm' },
-    { "verbose", required_argument, NULL, 'v' },
+    { "verbose", no_argument, NULL, 'v' },
     { "left", required_argument, NULL, 'l' },
     { "right", required_argument, NULL, 'r' },
     { "stepnoise", required_argument, NULL, 0 },
@@ -1050,12 +1050,13 @@ int main(int argc, char** argv)
 
             entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
 			fprintf(stderr,"model=markov_2_param\n");
-			fprintf(stderr,"  bias         = %f\n",modelstate.bias);
-			fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
-			fprintf(stderr,"  p01          = %f\n",modelstate.p01);
-			fprintf(stderr,"  p10          = %f\n",modelstate.p10);
-			fprintf(stderr,"  entropy      = %f\n",entropy);
-			fprintf(stderr,"  MCV Prob     = %f\n",lmcv_prob);
+			fprintf(stderr,"  bias            = %f\n",modelstate.bias);
+			fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
+			fprintf(stderr,"  p01             = %f\n",modelstate.p01);
+			fprintf(stderr,"  p10             = %f\n",modelstate.p10);
+			fprintf(stderr,"  entropy         = %f\n",entropy);
+			fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
+			fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
 			
 		}
 				
