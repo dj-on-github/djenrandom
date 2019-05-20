@@ -36,6 +36,45 @@
 #define RIGHT_VARIANCE 1
 #define LEFT_VARIANCE 1
 
+uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate) {
+    uint64_t e;
+
+    e = start;
+    do {
+        if ((getrand64(rngstate) & 0x01) == 1) return e;
+        e = e-1;
+    } while (e > 0);
+    return ((uint64_t)0);
+}
+
+
+double get_rand_double(t_rngstate* rngstate) {
+    uint64_t start;
+    uint64_t mantissa;
+    uint64_t exponent;
+    uint64_t sign;
+    uint64_t x;
+    double *f;
+    double result;
+
+    start = 1022;
+    int i;
+    for (i=0;i<1000;i++) {
+        mantissa = (getrand64(rngstate) & 0x07ffffffffffff) | 0x08000000000000;
+        exponent = choose_exponent(start,rngstate);
+        //sign = getrand64(rngstate) & 0x01;
+        sign = 0;
+        x = (sign << 63) | ((exponent & 0x7ff) << 52) | mantissa;
+        f = (double *)&x;
+        //fprintf(stderr,"%f  exponent=%llu\n",*f,exponent);
+    }
+    result = *f;
+    //fprintf(stderr,"  GET_RAND_DOUBLT = %f\n",result);
+    fflush(stdout);
+    return result;
+}
+
+
 void nondeterministic_bytes(const size_t byte_len, void* byte_buf, t_rngstate *rngstate) {
     if (rngstate->rdrand_available) {
         rdrand_get_bytes_step(byte_len, byte_buf);

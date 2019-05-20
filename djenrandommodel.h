@@ -124,6 +124,8 @@ void init_rng(t_rngstate* rngstate);
 int getrand16(t_rngstate* rngstate);
 uint64_t getrand64(t_rngstate* rngstate);
 double getNormal(t_modelstate *modelstate, t_rngstate* rngstate);
+double get_rand_double(t_rngstate* rngstate);
+uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate);
 
 /* entropysource(j,stepsize,v,seed); */
 /* compute next bit */
