@@ -14,7 +14,7 @@ Normal : This model generates Normal (or Gaussian) distributed data and outputs 
 SinBias : This model has a sinusoidally varying bias.
 Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
                      give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
-                     bias and serial correlation to be modelled in the same data series.
+                     bias a serial correlation to be modelled in the same data series.
 File : This reads data from a file and re-outputs it.
 
 This program generates random data in 1KiByte blocks. The number of blocks is controlled by the -k <blocks> option.
@@ -22,7 +22,7 @@ Data is output in either hex or binary, using the -b flag.
 The data is the same every time, unless you seed the generator from /dev/random using the -s option.
 There are a variety of models
 
-Usage: djenrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
+Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
        [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
@@ -60,8 +60,13 @@ Sinusoidally Varying Bias model (-m sinbias) Options
 
 Two Parameter Markov model (-m markov_2_param) Options
 
-  --p10=<0.0 to 1.0>        The probability of a 1 following a 0
-  --p01=<0.0 to 1.0>        The probability of a 0 following a 1
+  --p10=<0.0 to 1.0>        The probability of a 1 following a 0, default 0.5
+  --p01=<0.0 to 1.0>        The probability of a 0 following a 1, default 0.5
+         or
+  --bias=<0.0 to 1.0>               The ones probability, default 0.5
+  --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0
+         or
+  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0
 
 Normal model (-m normal) Options
 
@@ -108,7 +113,7 @@ Output Format Options
 
   -b, --binary                output in raw binary format
   --bpb                       Number of bits per byte to output in binary output mode. Default 8.
-  -w, --width=[1...256]       Bytes per line of output when in hex output mode
+  -w, --width=[1...256]       Byte per line of output
 
 The most important option of all
 
