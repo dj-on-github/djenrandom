@@ -915,6 +915,8 @@ int main(int argc, char** argv)
 	    } else if ((gotp01 == 1) || (gotp10==1))  {
 	    	if (gotp01==0) modelstate.p01 = 0.5;
 	        if (gotp10==0) modelstate.p10 = 0.5;
+            modelstate.correlation = 1.0 - modelstate.p10 - modelstate.p01;
+            modelstate.bias  = modelstate.p10/(modelstate.p10+modelstate.p01);
 	    } else if (gotentropy==0) {
 	        modelstate.entropy = 1.0;
 	        // This one is more difficult - there is more than one value for p01,p10
