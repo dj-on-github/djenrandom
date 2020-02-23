@@ -19,8 +19,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 r = rdrand.RdRandom()
 
 chain_len = 100
-x_low_limit = -2.0
-x_high_limit = 2.0
+x_low_limit = -1.0
+x_high_limit = 1.0
 
 pp = PdfPages('sigmoid_markov.pdf')
 
@@ -61,8 +61,7 @@ def output_bit(bit):
                 #print("")
                     
 
-
-def make_plot(chain_len, f):
+def make_plot(chain_len, f, start_state):
 
     chain1 = [f(x_low_limit+(x*stepsize))  for x in range(chain_len)] 
     
@@ -74,31 +73,19 @@ def make_plot(chain_len, f):
     
     chain2 = [(x-minimum)/h for x in chain1] # scale and shift to 0-1 range
     
-    chain = [(x,0) for x in chain2]
-    
-    
-    #chain = [(mk_p(x_low_limit+(x*stepsize),f), 0)  for x in range(chain_len)] 
-    
-    #for (x,y) in chain:
-    #    print(x,y)
-        
-    #for x in range(chain_len):
-    #    i = x_low_limit+(x*stepsize)
-    #    if (i>0):
-    #        print("function inputs %0.4f  %0.4f" % (-i , logistic_sigmoid(-i)))
-    #    else:
-    #        print("function inputs %0.4f  %0.4f"% (i , logistic_sigmoid(-i)))
-        
-
+    chain = [(x,0) for x in chain2]          # add occupancy counts
     
     # Initialise markov chain
     #   leftp     = probability of moving to the left
-    #   output    = value to output when state visited.
     #   occupancy = count of the times that state was visited
         
     state = start_state
     (leftp,occupancy) = chain[state]
-        
+    
+    # Generate 1 Mibibyte or 8 Mibibits of data
+    # by running the markov model
+    # and keeping record of the occupancy counts
+     
     for i in range(8*(2**20)):
         if leftp > r.random():
             # Move left (decreasing index)
@@ -151,12 +138,10 @@ titles    = [   "logistic_sigmoid",
                                 
 for f,title in zip(functions,titles):
     print(title)
-    minimum = 1000.0
-    maximum = -1000.0
     
-    plist, occ_list = make_plot(chain_len, f)
+    plist, occ_list = make_plot(chain_len, f, start_state)
         
-    fig, ax = plt.subplots(2)
+    fig, ax = plt.subplots(1,2)
     fig.suptitle(title)
     
     ax[0].plot(plist)

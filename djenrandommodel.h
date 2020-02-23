@@ -28,18 +28,34 @@
 #include <math.h>
 #include <stdint.h>
 
+#define CURVE_FLAT      0
+#define CURVE_LINEAR    1
+#define CURVE_LOGISTIC  2
+#define CURVE_TANH      3
+#define CURVE_ATAN      4
+#define CURVE_GUDERMANN 5
+#define CURVE_ERF       6
+#define CURVE_AGEBRAIC  7
+
 typedef struct {
 		double t;
 		int lastbit;
 		double left_stepsize;
 		double right_stepsize;
 		double sums_bias;
+        double sigmoid_bias;
 		double correlation;
 		double entropy;
 		double bias;
 		double mean;
 		double variance;
-		
+		int    states;
+        int    sigmoid_state;
+        double min_range;
+        double max_range;
+        double *chain;
+        int    curve;
+        char   curvestr[25];
 		double p01;
 		double p10;
 		int bitwidth;
@@ -50,7 +66,7 @@ typedef struct {
 		unsigned long long lcg_mask;
 		unsigned long long lcg_x;
 		unsigned int lcg_truncate;
-		unsigned int lcg_outbits;	
+		unsigned int lcg_outbits;
 		unsigned int lcg_index;
 		unsigned long long lcg_output;
 		
@@ -64,7 +80,7 @@ typedef struct {
 		uint16_t pcg16_state;
 		uint32_t pcg32_state;
 		uint64_t pcg64_state;
-		uint64_t pcg128_state[2];		
+		uint64_t pcg128_state[2];
 		
 		uint16_t  pcg16_multiplier;
         uint32_t  pcg32_multiplier;
@@ -139,6 +155,7 @@ int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int markov2psource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markovsigmoidsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int sinbiassource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -159,6 +176,7 @@ void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
 void markov2pinit(   t_modelstate* modelstate, t_rngstate* rngstate);
+void markovsigmoidinit(t_modelstate* modelstate, t_rngstate* rngstate);
 void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
 void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
 void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);

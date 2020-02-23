@@ -542,6 +542,55 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
 	return(result);
 }
 
+int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
+{
+	int state;
+    int chain_len;
+    double p_left;
+    double therand;
+    int     result;
+    double  maxp;
+    double  entropy;
+    
+	/* get a uniform Random floating point number.              */
+	therand = get_rand_double(rngstate);
+    
+    state = modelstate->sigmoid_state;
+    p_left = modelstate->chain[state];
+    chain_len = modelstate->states;
+    
+    if ((state > 0) && (p_left > therand)) { // move left
+        state = state-1;
+        result = 0;
+    } else if ((state == 0) && (p_left > therand)) { // Stay at left
+        state = 0;
+        result = 0;
+    } else if ((state < (chain_len-1)) && (p_left < therand)) { // move right
+        state = state+1;
+        result = 1;
+    } else if ((state == (chain_len-1)) && (p_left < therand)) { // stay at right
+        state = chain_len-1;
+        result = 1;
+    }
+    else {     // do not be here
+        state = 0;
+        result = 1;
+    }
+
+    modelstate->sigmoid_state = state;
+    modelstate->sigmoid_bias = p_left;
+    
+	if (modelstate->using_jfile == 1)
+	{
+        if (p_left > 0.5) maxp = p_left;
+        else maxp = 1.0 - p_left;
+
+        entropy = -log(maxp)/log(2);
+		fprintf(modelstate->jfile,"%0.6f\n",entropy);
+	}
+	return(result);
+}
+
 
 int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
 {
@@ -1230,6 +1279,148 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 	}
 
 }
+
+void markovsigmoidinit(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+    int i;
+	unsigned char out[16];
+    double low;
+    double high;
+    double states;
+    double range;
+    double stepsize;
+    double x;
+    double themin;
+    double themax;
+    double h;
+    
+	//smoothinit(modelstate, rngstate);
+	if (rngstate->randseed==1)
+	{
+	    nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+		/*fread(rngstate->rngbits,16,1,rngstate->devrandom);*/
+	}
+	else
+	{
+		aes128k128d(rngstate->k,rngstate->v,out);
+		aes128k128d(out,rngstate->k,rngstate->rngbits);
+	}
+
+    // Starting state
+    modelstate->sigmoid_state = (modelstate->states) >> 1;
+    
+    //
+    // Set up curve string names
+    //
+    if (modelstate->curve == CURVE_AGEBRAIC) {
+        strcpy(modelstate->curvestr,"Algebraic");
+    } else if (modelstate->curve == CURVE_ATAN) {
+        strcpy(modelstate->curvestr,"Arc Tangent");
+    } else if (modelstate->curve == CURVE_ERF) {
+        strcpy(modelstate->curvestr,"Error Function");
+    } else if (modelstate->curve == CURVE_FLAT) {
+        strcpy(modelstate->curvestr,"Flat");
+    } else if (modelstate->curve == CURVE_GUDERMANN) {
+        strcpy(modelstate->curvestr,"Gudermann");
+    } else if (modelstate->curve == CURVE_LINEAR) {
+        strcpy(modelstate->curvestr,"Linear");
+    } else if (modelstate->curve == CURVE_LOGISTIC) {
+        strcpy(modelstate->curvestr,"Logistic");
+    } else if (modelstate->curve == CURVE_TANH) {
+        strcpy(modelstate->curvestr,"Hyperbolic Tangent");
+    }
+    
+    //
+    // Allocate space for Markov Chain
+    //
+    modelstate->chain = malloc((modelstate->states)*sizeof(double));
+        
+    //
+    // Set up the chain transition probabilities
+    // based on the curve chosen and the range.
+    //
+    low = modelstate->min_range;
+    high = modelstate->max_range;
+    states = modelstate->states;
+    range = high-low;
+    
+    // Compute stepsize
+    stepsize = (range/(states-1));
+    
+    // Compute x distance between each state
+    stepsize = (range/(states-1));    
+    
+    if (modelstate->curve == CURVE_FLAT) {
+        for (i=0;i<states;i++) {
+            modelstate->chain[i] = 0.5;
+        }
+    }
+    
+    if (modelstate->curve == CURVE_LINEAR) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);            
+            modelstate->chain[i] = x;
+        }
+    }
+    
+    if (modelstate->curve == CURVE_AGEBRAIC) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = x/sqrt(1.0+(x*x));
+        }
+    }    
+
+    if (modelstate->curve == CURVE_ATAN) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = atan(x);
+        }
+    } 
+
+    if (modelstate->curve == CURVE_ERF) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = erf(x);
+        }
+    }
+    
+    if (modelstate->curve == CURVE_GUDERMANN) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = 2.0*atan(tanh(x/2.0));
+        }
+    }
+    
+    if (modelstate->curve == CURVE_LOGISTIC) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = 1.0/(1.0+exp(-x));
+        }
+    }
+    
+    // Scale the curve to be between 0 and 1
+    // First find the highest and lowest point.
+    // Then sqish it.
+    themin = 10000.0;
+    themax = -10000.0;
+    
+    for (i=0;i<modelstate->states;i++) {
+        if (modelstate->chain[i] > themax) themax=modelstate->chain[i];
+    }
+    
+    for (i=0;i<modelstate->states;i++) {
+        if (modelstate->chain[i] < themin) themin=modelstate->chain[i];
+    }
+    
+    h = themax - themin;    
+    
+    for (i=0;i<modelstate->states;i++) {
+        x= modelstate->chain[i];
+        x = (x-themin)/h;
+        modelstate->chain[i] = x;
+    }
+}
+
 
 void sinbiasinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {

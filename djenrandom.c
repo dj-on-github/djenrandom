@@ -50,7 +50,8 @@
 #define MODEL_XORSHIFT 8
 #define MODEL_SINBIAS 9
 #define MODEL_MARKOV2P 10
-
+#define MODEL_MARKOV_SIGMOID 11
+                    
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
 #define INFORMAT_BINARY 2
@@ -109,6 +110,12 @@ fprintf(stderr,"  --correlation=<-1.0 to 1.0>       The serial correlation coeff
 fprintf(stderr,"         or\n");
 fprintf(stderr,"  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0\n");
 fprintf(stderr,"  --bitwidth=<3 to 64>      The number of bits per symbol\n");
+
+fprintf(stderr,"\nSigmoid Markov model (-m markov_sigmoid) Options\n\n");
+fprintf(stderr,"  --states=<n>              The number of states in the Markov Chain\n");
+fprintf(stderr,"  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default erf\n");
+fprintf(stderr,"  --min_range=<float>               The start of the range of the curve. Usually between -5.0 and -2.0\n");
+fprintf(stderr,"  --max_range=<float>               The end of the range of the curve. Usually between 2.0 and 5.0\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -269,6 +276,11 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 		result = markov2psource(modelstate, rngstate);
 		return result;
 	}
+	else if (model==MODEL_MARKOV_SIGMOID)
+ 	{
+		result = markovsigmoidsource(modelstate, rngstate);
+		return result;
+	}
 	else if (model==MODEL_SINBIAS)
  	{
 		result = sinbiassource(modelstate, rngstate);
@@ -324,6 +336,10 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	else if (model==MODEL_MARKOV2P)
  	{
 		markov2pinit(modelstate, rngstate);
+	}
+	else if (model==MODEL_MARKOV_SIGMOID)
+ 	{
+		markovsigmoidinit(modelstate, rngstate);
 	}
 	else if (model==MODEL_SINBIAS)
  	{
@@ -476,6 +492,9 @@ int main(int argc, char** argv)
 	modelstate.p10 = 0.5;
 	modelstate.bitwidth=4;
     
+    modelstate.curve = CURVE_LINEAR;
+    modelstate.states = 51;
+    modelstate.sigmoid_state = 25;
 	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
 	postxor_entropy = 0.0;
@@ -528,7 +547,12 @@ int main(int argc, char** argv)
     { "correlation", required_argument, NULL, 0 },
     { "mean", required_argument, NULL, 0 },
     { "variance", required_argument, NULL, 0 },
-    
+
+    { "states", required_argument, NULL, 0 },
+    { "sigmoid", required_argument, NULL, 0 },
+    { "min_range", required_argument, NULL, 0 },
+    { "max_range", required_argument, NULL, 0 },
+            
     { "lcg_a", required_argument, NULL, 0 },
     { "lcg_c", required_argument, NULL, 0 },
     { "lcg_m", required_argument, NULL, 0 },
@@ -638,6 +662,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"biased")==0) model=MODEL_BIASED;
                 else if (strcmp(optarg,"correlated")==0) model=MODEL_CORRELATED;
                 else if (strcmp(optarg,"markov_2_param")==0) model=MODEL_MARKOV2P;
+                else if (strcmp(optarg,"markov_sigmoid")==0) model=MODEL_MARKOV_SIGMOID;
                 else if (strcmp(optarg,"sinbias")==0) model=MODEL_SINBIAS;
                 else if (strcmp(optarg,"lcg")==0) model=MODEL_LCG;
                 else if (strcmp(optarg,"pcg")==0) model=MODEL_PCG;
@@ -646,7 +671,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
                 {
-                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, normal or file.\n",optarg);
+                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, markov_sigmoid, normal or file.\n",optarg);
                     exit(1);
                 }
                 break; 
@@ -706,6 +731,45 @@ int main(int argc, char** argv)
                 if( strcmp( "variance", longOpts[longIndex].name ) == 0 ) {
                     modelstate.variance = atof(optarg);
                 }
+                if( strcmp( "states", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.states = atoi(optarg);
+                }
+                if( strcmp( "min_range", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.min_range = atof(optarg);
+                }
+                if( strcmp( "max_range", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.max_range = atof(optarg);
+                }
+                if( strcmp( "sigmoid", longOpts[longIndex].name ) == 0 ) {
+                    if (strcmp(optarg,"flat")==0) {
+                        modelstate.curve = CURVE_FLAT;
+                    }
+                    if (strcmp(optarg,"linear")==0) {
+                        modelstate.curve = CURVE_LINEAR;
+                    }
+                    if (strcmp(optarg,"logistic")==0) {
+                        modelstate.curve = CURVE_LOGISTIC;
+                    }
+                    
+                    if (strcmp(optarg,"tanh")==0) {
+                        modelstate.curve = CURVE_TANH;
+                    }
+                    
+                    if (strcmp(optarg,"atan")==0) {
+                        modelstate.curve = CURVE_ATAN;
+                    }
+                    
+                    if (strcmp(optarg,"gudermann")==0) {
+                        modelstate.curve = CURVE_GUDERMANN;
+                    }
+                    
+                    if (strcmp(optarg,"erf")==0) {
+                        modelstate.curve = CURVE_ERF;
+                    }
+                    if (strcmp(optarg,"algebraic")==0) {
+                        modelstate.curve = CURVE_AGEBRAIC;
+                    }
+                }                                  
                 if( strcmp( "lcg_a", longOpts[longIndex].name ) == 0 ) {
                     modelstate.lcg_a = strtoull(optarg,NULL,0);
                 }
@@ -1058,6 +1122,14 @@ int main(int argc, char** argv)
 			fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
 			fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
 			
+		}
+		if (model == MODEL_MARKOV_SIGMOID)
+		{
+			fprintf(stderr,"model=markov_sigmoid\n");
+            fprintf(stderr,"  Chain Length    = %d\n",modelstate.states);
+			fprintf(stderr,"  curve           = %s\n",modelstate.curvestr);
+			fprintf(stderr,"  range from      = %f\n",modelstate.min_range);
+			fprintf(stderr,"          to      = %f\n",modelstate.max_range);
 		}
 				
 		if (model == MODEL_LCG)
