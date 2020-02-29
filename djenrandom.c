@@ -493,8 +493,10 @@ int main(int argc, char** argv)
 	modelstate.bitwidth=4;
     
     modelstate.curve = CURVE_LINEAR;
-    modelstate.states = 51;
-    modelstate.sigmoid_state = 25;
+    modelstate.states = 21;
+    modelstate.sigmoid_state = 10;
+    modelstate.min_range=-1.0;
+    modelstate.max_range=1.0;
 	modelstate.xorshift_size=32;
 	sums_entropy = 0.0;
 	postxor_entropy = 0.0;

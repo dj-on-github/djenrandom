@@ -52,22 +52,23 @@ double get_rand_double(t_rngstate* rngstate) {
     uint64_t start;
     uint64_t mantissa;
     uint64_t exponent;
-    uint64_t sign;
+    //uint64_t sign;
     uint64_t x;
     double *f;
     double result;
 
     start = 1022;
-    int i;
-    for (i=0;i<1000;i++) {
+    //int i;
+    //for (i=0;i<1000;i++) {
         mantissa = (getrand64(rngstate) & 0x07ffffffffffff) | 0x08000000000000;
         exponent = choose_exponent(start,rngstate);
         //sign = getrand64(rngstate) & 0x01;
-        sign = 0;
-        x = (sign << 63) | ((exponent & 0x7ff) << 52) | mantissa;
+        //sign = 0;
+        //x = (sign << 63) | ((exponent & 0x7ff) << 52) | mantissa;
+        x = ((exponent & 0x7ff) << 52) | mantissa;
         f = (double *)&x;
         //fprintf(stderr,"%f  exponent=%llu\n",*f,exponent);
-    }
+    //}
     result = *f;
     //fprintf(stderr,"  GET_RAND_DOUBLT = %f\n",result);
     fflush(stdout);
