@@ -1,7 +1,7 @@
 Note that this used to be called genrandom, until I found there was already a fairly useless standard linux utility called genrandom.
 So djenrandom became the name.
 
-This program generates random data with known controlled statistical properties. It's primary reason for existing is
+This program generates random data with known controlled statistical properties. Its primary reason for existing is
 to provide test data for calibrating and validating random number testing algorithms.
 
 It implements a number of models, selected with the -m <model> option.
@@ -14,6 +14,10 @@ Normal : This model generates Normal (or Gaussian) distributed data and outputs 
 SinBias : This model has a sinusoidally varying bias.
 Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
                      give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
+                     bias a serial correlation to be modelled in the same data series.
+Markov Sigmoid : This generates bits by walking along a finite Markov chain with transition probabilities set
+                     according to a chosen sigmoid curve. Moving left generates 0, moving right generates 1.
+                     
                      bias a serial correlation to be modelled in the same data series.
 File : This reads data from a file and re-outputs it.
 
@@ -29,6 +33,9 @@ Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate lengt
        [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]
        [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]
        [--p10=<probability of 10 transition] [--p01=<probability of 01 transition>]
+       [--states=<integer of number of states in the markov chain>]
+       [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]
+       [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]
        [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]
        [--bpb=<binary bits per byte>]
        [-k <1K_Blocks>] [-w [1..256]]
@@ -46,11 +53,11 @@ Step Update Metastable Source model (-m sums) Options
 
 Biased model (-m biased) Options
 
-  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased model
+  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased or markov model
 
 Correlated model (-m correlated) Options
 
-  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation model
+  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation or markov model
 
 Sinusoidally Varying Bias model (-m sinbias) Options
 
@@ -67,6 +74,14 @@ Two Parameter Markov model (-m markov_2_param) Options
   --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0
          or
   --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0
+  --bitwidth=<3 to 64>      The number of bits per symbol
+
+Sigmoid Markov model (-m markov_sigmoid) Options
+
+  --states=<n>              The number of states in the Markov Chain
+  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default linear
+  --min_range=<float>               The start of the range of the curve. Usually between -5.0 and -2.0
+  --max_range=<float>               The end of the range of the curve. Usually between 2.0 and 5.0
 
 Normal model (-m normal) Options
 
