@@ -76,6 +76,9 @@ fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--v
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
 fprintf(stderr,"       [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]\n");
 fprintf(stderr,"       [--p10=<probability of 10 transition] [--p01=<probability of 01 transition>]\n");
+fprintf(stderr,"       [--states=<integer of number of states in the markov chain>]\n");
+fprintf(stderr,"       [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]\n");
+fprintf(stderr,"       [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
@@ -113,7 +116,7 @@ fprintf(stderr,"  --bitwidth=<3 to 64>      The number of bits per symbol\n");
 
 fprintf(stderr,"\nSigmoid Markov model (-m markov_sigmoid) Options\n\n");
 fprintf(stderr,"  --states=<n>              The number of states in the Markov Chain\n");
-fprintf(stderr,"  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default erf\n");
+fprintf(stderr,"  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default linear\n");
 fprintf(stderr,"  --min_range=<float>               The start of the range of the curve. Usually between -5.0 and -2.0\n");
 fprintf(stderr,"  --max_range=<float>               The end of the range of the curve. Usually between 2.0 and 5.0\n");
 
