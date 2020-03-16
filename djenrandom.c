@@ -526,10 +526,18 @@ int main(int argc, char** argv)
     int gotxmin;
     int gotxmax;
 
-    
+    /*
+    fprintf(stderr,"  ARGC=%d\n",argc);
+    for (i=0;i<argc;i++) {
+        fprintf(stderr,"  ARGV[%d] = %s  ",i,argv[i]);
+        for(j=0;j<strlen(argv[i]);j++) fprintf(stderr,"%02x ",(unsigned char)(argv[i][j]));
+        fprintf(stderr,"\n");
+    }  
+    */
+
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:o:j:i:f:k:w:bxsnvh";
+    char optString[] = "c:m:l:r:B:C:o:j:i:f:k:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
@@ -548,8 +556,8 @@ int main(int argc, char** argv)
     { "left", required_argument, NULL, 'l' },
     { "right", required_argument, NULL, 'r' },
     { "stepnoise", required_argument, NULL, 0 },
-    { "bias", required_argument, NULL, 0 },
-    { "correlation", required_argument, NULL, 0 },
+    { "bias", required_argument, NULL, 'B' },
+    { "correlation", required_argument, NULL, 'C' },
     { "mean", required_argument, NULL, 0 },
     { "variance", required_argument, NULL, 0 },
 
@@ -604,6 +612,7 @@ int main(int argc, char** argv)
     
     opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
     while( opt != -1 ) {
+        //fprintf(stderr,"OPT = %c\n",opt);
         switch( opt ) {
             case 'b':
                 binary_mode = 1;
@@ -629,7 +638,17 @@ int main(int argc, char** argv)
             case 'l':
                 modelstate.left_stepsize = atof(optarg);
                 break;
-                
+               
+            case 'B': 
+                modelstate.bias = atof(optarg);
+                gotbias=1;
+                break;
+
+            case 'C': 
+                modelstate.correlation = atof(optarg);
+                gotcorrelation=1;
+                break;
+
             case 'r':
                 modelstate.right_stepsize = atof(optarg);
                 break;
@@ -717,14 +736,14 @@ int main(int argc, char** argv)
                     modelstate.using_stepnoise = 1;
                     modelstate.stepnoise = atof(optarg);
                 }
-                if( strcmp( "bias", longOpts[longIndex].name ) == 0 ) {
-                    modelstate.bias = atof(optarg);
-                    gotbias=1;
-                }
-                if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
-                    modelstate.correlation = atof(optarg);
-                    gotcorrelation=1;
-                }
+                //if( strcmp( "bias", longOpts[longIndex].name ) == 0 ) {
+                //    modelstate.bias = atof(optarg);
+                //    gotbias=1;
+                //}
+                //if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
+                //    modelstate.correlation = atof(optarg);
+                //    gotcorrelation=1;
+                //}
                 if( strcmp( "entropy", longOpts[longIndex].name ) == 0 ) {
                     modelstate.entropy = atof(optarg);
                     gotentropy=1;
