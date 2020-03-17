@@ -604,7 +604,7 @@ int main(int argc, char** argv)
         else {
             rngstate.rdrand_available=0;
 		    rngstate.devurandom_available = 0;
-		    //fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+		    //fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
             //exit(1);
 		}
 	//}
@@ -642,11 +642,13 @@ int main(int argc, char** argv)
             case 'B': 
                 modelstate.bias = atof(optarg);
                 gotbias=1;
+                modelstate.gotbias=1;
                 break;
 
             case 'C': 
                 modelstate.correlation = atof(optarg);
                 gotcorrelation=1;
+                modelstate.gotcorrelation=1;
                 break;
 
             case 'r':
@@ -747,6 +749,7 @@ int main(int argc, char** argv)
                 if( strcmp( "entropy", longOpts[longIndex].name ) == 0 ) {
                     modelstate.entropy = atof(optarg);
                     gotentropy=1;
+                    modelstate.gotentropy=1;
                 }
                 if( strcmp( "mean", longOpts[longIndex].name ) == 0 ) {
                     modelstate.mean = atof(optarg);
@@ -844,10 +847,12 @@ int main(int argc, char** argv)
                 
                 if( strcmp( "p01", longOpts[longIndex].name ) == 0 ) {
                     modelstate.p01 = atof(optarg);
+                    modelstate.gotp01 = 1;
                     gotp01 = 1;
                 }
                 if( strcmp( "p10", longOpts[longIndex].name ) == 0 ) {
                     modelstate.p10 = atof(optarg);
+                    modelstate.gotp10 = 1;
                     gotp10 = 1;
                 }
                 if( strcmp( "bitwidth", longOpts[longIndex].name ) == 0 ) {
@@ -888,7 +893,7 @@ int main(int argc, char** argv)
 
     if (rngstate.randseed==1) {
         if ((rngstate.rdrand_available==0) && (rngstate.devurandom_available==0)){
-		    fprintf(stderr,"Neither /dev/urandom not RdRand Supported for nondeterministic seeding.");
+		    fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
             exit(1);
 		}
 	}
@@ -1039,6 +1044,7 @@ int main(int argc, char** argv)
 	    }  
 	    
 	    // Deal with the 3 parameter types
+	    /*
 	    if (gotentropy==1) {
             epsilon = pow(2.0,-50);
             pick_point(&(modelstate.p01),&(modelstate.p10),modelstate.entropy,epsilon,modelstate.bitwidth,&rngstate);
@@ -1071,7 +1077,7 @@ int main(int argc, char** argv)
             modelstate.bias = 0.5;
             modelstate.correlation = 0.0;
 	    }
-	    
+	    */
 	    
 	    
 	}
@@ -1132,12 +1138,13 @@ int main(int argc, char** argv)
 
 		if (model == MODEL_MARKOV2P)
 		{
-            double entropy;
-            double lmcv_prob;
-            uint64_t lmcv;
+            //double entropy;
+            //double lmcv_prob;
+            //uint64_t lmcv;
 
-            entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
-			fprintf(stderr,"model=markov_2_param\n");
+            //entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
+			/*
+            fprintf(stderr,"model=markov_2_param\n");
 			fprintf(stderr,"  bias            = %f\n",modelstate.bias);
 			fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
 			fprintf(stderr,"  p01             = %f\n",modelstate.p01);
@@ -1145,6 +1152,7 @@ int main(int argc, char** argv)
 			fprintf(stderr,"  entropy         = %f\n",entropy);
 			fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
 			fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
+            */
 			
 		}
 		if (model == MODEL_MARKOV_SIGMOID)

@@ -58,7 +58,12 @@ typedef struct {
         char   curvestr[25];
 		double p01;
 		double p10;
-		int bitwidth;
+		int    bitwidth;
+        int    gotentropy;
+        int    gotp01;
+        int    gotp10;
+        int    gotbias;
+        int    gotcorrelation;
 		
 		unsigned long long lcg_a; /* LCG Model */
 		unsigned long long lcg_c;
