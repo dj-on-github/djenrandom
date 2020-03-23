@@ -42,10 +42,11 @@ typedef struct {
 		int lastbit;
 		double left_stepsize;
 		double right_stepsize;
-		double sums_bias;
         double sigmoid_bias;
 		double correlation;
 		double entropy;
+		double averageentropy;
+        int    n;
 		double bias;
 		double mean;
 		double variance;

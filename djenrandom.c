@@ -430,7 +430,7 @@ int main(int argc, char** argv)
     int gotentropy;
     //int gotbitwidth;
     
-    double epsilon;
+    //double epsilon;
     
 	/* Defaults */
 	binary_mode = 0; /* binary when 1, hex when 0 */
@@ -484,18 +484,18 @@ int main(int argc, char** argv)
 	
 	modelstate.left_stepsize = 0.1;
 	modelstate.right_stepsize = 0.1;
-	modelstate.bias = 0.2;
+	modelstate.bias = 0.5;
 	modelstate.correlation = 0.1;
 	modelstate.mean = 0.0;
 	modelstate.variance = 0.1;
 	modelstate.using_stepnoise = 0;
 	modelstate.stepnoise = 0.0;
-	modelstate.sums_bias = 0.0;
 	modelstate.p01 = 0.5;
 	modelstate.p10 = 0.5;
 	modelstate.bitwidth=4;
     
     modelstate.curve = CURVE_LINEAR;
+    strcpy(modelstate.curvestr,"Linear");
     modelstate.states = 21;
     modelstate.sigmoid_state = 10;
     modelstate.min_range=-1.0;
@@ -537,7 +537,7 @@ int main(int argc, char** argv)
 
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:C:o:j:i:f:k:w:bxsnvh";
+    char optString[] = "c:m:l:r:B:C:o:j:i:f:k:V:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
@@ -553,6 +553,7 @@ int main(int argc, char** argv)
     { "cmax", required_argument, NULL, 'c' },
     { "model", required_argument, NULL, 'm' },
     { "verbose", no_argument, NULL, 'v' },
+    { "verbose_level", required_argument, NULL, 'V' },
     { "left", required_argument, NULL, 'l' },
     { "right", required_argument, NULL, 'r' },
     { "stepnoise", required_argument, NULL, 0 },
@@ -633,6 +634,10 @@ int main(int argc, char** argv)
             
             case 'v':
                 verbose_mode = 1;
+                break;
+            
+            case 'V':
+                verbose_mode = atoi(optarg);
                 break;
             
             case 'l':
@@ -773,28 +778,35 @@ int main(int argc, char** argv)
                     }
                     if (strcmp(optarg,"linear")==0) {
                         modelstate.curve = CURVE_LINEAR;
+                        strcpy(modelstate.curvestr,"Linear");
                     }
                     if (strcmp(optarg,"logistic")==0) {
                         modelstate.curve = CURVE_LOGISTIC;
+                        strcpy(modelstate.curvestr,"Logistic");
                     }
                     
                     if (strcmp(optarg,"tanh")==0) {
                         modelstate.curve = CURVE_TANH;
+                        strcpy(modelstate.curvestr,"Hyperbolic Tangent");
                     }
                     
                     if (strcmp(optarg,"atan")==0) {
                         modelstate.curve = CURVE_ATAN;
+                        strcpy(modelstate.curvestr,"Arctangent");
                     }
                     
                     if (strcmp(optarg,"gudermann")==0) {
                         modelstate.curve = CURVE_GUDERMANN;
+                        strcpy(modelstate.curvestr,"Gudermannian");
                     }
                     
                     if (strcmp(optarg,"erf")==0) {
                         modelstate.curve = CURVE_ERF;
+                        strcpy(modelstate.curvestr,"Error Function");
                     }
                     if (strcmp(optarg,"algebraic")==0) {
                         modelstate.curve = CURVE_AGEBRAIC;
+                        strcpy(modelstate.curvestr,"Algebraic");
                     }
                 }                                  
                 if( strcmp( "lcg_a", longOpts[longIndex].name ) == 0 ) {
@@ -1094,7 +1106,7 @@ int main(int argc, char** argv)
 
 	
 	/* Print out the job parameters */
-	if (verbose_mode==1)
+	if (verbose_mode>0)
 	{
         if (aesni_check_support() == 1)
             fprintf(stderr,"AESNI Supported in instruction set\n");
@@ -1292,7 +1304,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			if (verbose_mode ==1)
+			if (verbose_mode>0)
 				fprintf(stderr,"opened input file %s for reading\n",infilename);
 		}
 	}
@@ -1356,7 +1368,7 @@ int main(int argc, char** argv)
 
 		}
 	}
-	else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift or file*/
+	else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
 	{
         lineindex = 0;
         
@@ -1379,7 +1391,7 @@ int main(int argc, char** argv)
 								if (rngstate.reached_eof == 1)
 								    goto reached_eof;
 								modelstate.lastbit = thebit;
-								prob = modelstate.sums_bias;
+								prob = modelstate.bias;
 								if (xoriter == 0) pa1 = prob;
 								if (xoriter == 1) pb1 = prob;
 								if (xoriter == 2) pc1 = prob;
@@ -1400,7 +1412,7 @@ int main(int argc, char** argv)
 								thebit ^= entropysource(model, &modelstate, &rngstate);
 								if (rngstate.reached_eof == 1) goto reached_eof;
 								modelstate.lastbit = thebit;
-								prob = modelstate.sums_bias;
+								prob = modelstate.bias;
 								sums_entropy = bias2entropy(prob);
 							}
 						}
@@ -1418,7 +1430,7 @@ int main(int argc, char** argv)
 							    }
 							}
 							modelstate.lastbit = thebit;
-							prob = modelstate.sums_bias;
+							prob = modelstate.bias;
 							sums_entropy = bias2entropy(prob);
 							total_entropy += sums_entropy;
 						}
@@ -1542,7 +1554,7 @@ int main(int argc, char** argv)
 		}
 		reached_eof:
 		
-		if (verbose_mode ==1)
+		if (verbose_mode>0)
 		{
 			fprintf(stderr,"Total Entropy = %F\n",total_entropy);
 			fprintf(stderr,"Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));

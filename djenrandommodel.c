@@ -344,7 +344,7 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
     /* and compare with the random number to make  */
     /* a decision on a 1 or a 0.  */
 
-    /* modelstate->sums_bias = randomnumber; */
+    /* modelstate->bias = randomnumber; */
 
     pmfc = smooth_prob_move_from_center(tee);
 
@@ -355,14 +355,14 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
         {
             result = 1;
             tee = tee+modelstate->right_stepsize;
-            modelstate->sums_bias = pmfc;
+            modelstate->bias = pmfc;
         }
         /* Else we're on the left, keep going left */
         else
         {
             result = 0;
             tee = tee-modelstate->left_stepsize;
-            modelstate->sums_bias = 1.0-pmfc;
+            modelstate->bias = 1.0-pmfc;
         }
     }
     /* Else we're moving towards the center */
@@ -373,14 +373,14 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
         {
             result = 0;
             tee = tee-modelstate->left_stepsize;
-            modelstate->sums_bias = pmfc;
+            modelstate->bias = pmfc;
         }
         /* Else we're on the left, move right */
         else
         {
             result = 1;
             tee = tee+modelstate->right_stepsize;
-            modelstate->sums_bias = 1.0-pmfc;
+            modelstate->bias = 1.0-pmfc;
         }
     }
 
@@ -391,17 +391,19 @@ int smoothsource(t_modelstate* modelstate, t_rngstate* rngstate)
     }
 
     modelstate->t = tee;
+    
+    if (pmfc > 0.5)
+        maxp = pmfc;
+    else
+        maxp = 1.0-pmfc;
 
-    if (modelstate->using_jfile ==1)
-    {
-        if (pmfc > 0.5) maxp = pmfc;
-        else maxp = 1.0-pmfc;
-
-        entropy = -log(maxp)/log(2);
-
+    entropy = -log(maxp)/log(2);
+    modelstate->averageentropy = entropy;
+    modelstate->n = (modelstate->n)+1;
+ 
+    if (modelstate->using_jfile ==1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
-
     return(result);
 }
 
@@ -418,6 +420,9 @@ int puresource(t_modelstate* modelstate, t_rngstate* rngstate)
 
     if (theint > 32767) result = 1;
     else result = 0;
+
+    modelstate->averageentropy = 1,0;
+    modelstate->n = (modelstate->n)+1;
 
     if (modelstate->using_jfile ==1)
     {
@@ -444,12 +449,16 @@ int biasedsource(t_modelstate* modelstate, t_rngstate* rngstate)
     if (theint < threshold) result = 1;
     else result = 0;
 
-    if (modelstate->using_jfile ==1)
-    {
-        if (modelstate->bias > 0.5) maxp = modelstate->bias;
-        else maxp = 1.0 - modelstate->bias;
-
-        entropy = -log(maxp)/log(2);
+    if (modelstate->bias > 0.5)
+        maxp = modelstate->bias;
+    else
+        maxp = 1.0 - modelstate->bias;
+    
+    entropy = -log(maxp)/log(2);
+    modelstate->averageentropy = entropy;
+    modelstate->n = (modelstate->n)+1;
+ 
+    if (modelstate->using_jfile ==1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
     return(result);
@@ -465,6 +474,7 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
     double bias;
     double maxp;
     double entropy;
+    int delta;
 
     /* get a uniform Random number.              */
 
@@ -486,16 +496,23 @@ int correlatedsource(t_modelstate *modelstate, t_rngstate* rngstate)
         else result = 0;
     }
 
-    modelstate->sums_bias = bias;
-    
-    if (modelstate->using_jfile ==1)
-    {
-        if (bias > 0.5) maxp = bias;
-        else maxp = 1.0 - bias;
+    modelstate->bias = bias;
 
-        entropy = -log(maxp)/log(2);
+    if (bias > 0.5)
+        maxp = bias;
+    else
+        maxp = 1.0 - bias;
+
+    entropy = -log(maxp)/log(2);
+
+    modelstate->n = (modelstate->n)+1;
+    delta = entropy - (modelstate->averageentropy);
+    modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
+
+    if (modelstate->using_jfile == 1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
+    
     return(result);
 }
 
@@ -512,6 +529,7 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
     double maxp;
     double entropy;
     double bias;
+    double delta;
 
     /* get a uniform Random number.              */
 
@@ -543,16 +561,23 @@ int markov2psource(t_modelstate *modelstate, t_rngstate* rngstate)
         bias = p01;
     }
 
-    modelstate->sums_bias = bias;
-    
-    if (modelstate->using_jfile == 1)
-    {
-        if (bias > 0.5) maxp = bias;
-        else maxp = 1.0 - bias;
+    modelstate->bias = bias;
 
-        entropy = -log(maxp)/log(2);
+    if (bias > 0.5)
+        maxp = bias;
+    else
+        maxp = 1.0 - bias;
+
+    entropy = -log(maxp)/log(2);
+
+    modelstate->n = (modelstate->n)+1;
+    delta = entropy - (modelstate->averageentropy);
+    modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
+
+    if (modelstate->using_jfile == 1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
+
     return(result);
 }
 
@@ -565,6 +590,7 @@ int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
     int     result;
     double  maxp;
     double  entropy;
+    double delta;
     
     /* get a uniform Random floating point number.              */
     therand = get_rand_double(rngstate);
@@ -587,6 +613,9 @@ int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
         result = 1;
     }
     else {     // do not be here
+        if (verbose_mode==4) {
+            fprintf(stderr,"Impossibru State state=%d  pleft=%0.3f therand=%0.4f\n",state,p_left,therand);
+        }
         state = 0;
         result = 1;
     }
@@ -594,12 +623,18 @@ int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
     modelstate->sigmoid_state = state;
     modelstate->sigmoid_bias = p_left;
     
-    if (modelstate->using_jfile == 1)
-    {
-        if (p_left > 0.5) maxp = p_left;
-        else maxp = 1.0 - p_left;
+    if (p_left > 0.5)
+        maxp = p_left;
+    else
+        maxp = 1.0 - p_left;
 
-        entropy = -log(maxp)/log(2);
+    entropy = -log(maxp)/log(2);
+
+    modelstate->n = (modelstate->n)+1;
+    delta = entropy - (modelstate->averageentropy);
+    modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
+
+    if (modelstate->using_jfile == 1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
     return(result);
@@ -619,6 +654,7 @@ int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
     int t;
     double maxp;
     double entropy;
+    double delta;
 
     /* get a uniform Random number.              */
 
@@ -643,15 +679,21 @@ int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
 
     modelstate->sinbias_bias = bias;
 
-    if (modelstate->using_jfile ==1)
-    {
-        if (bias > 0.5) maxp = bias;
-        else maxp = 1.0 - bias;
+    if (bias > 0.5)
+        maxp = bias;
+    else
+        maxp = 1.0 - bias;
 
-        entropy = -log(maxp)/log(2);
+    entropy = -log(maxp)/log(2);
+
+    modelstate->n = (modelstate->n)+1;
+    delta = entropy - (modelstate->averageentropy);
+    modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
+
+    if (modelstate->using_jfile == 1) {
         fprintf(modelstate->jfile,"%0.6f\n",entropy);
     }
-    
+
     modelstate->time = t+1;
     return(result);
 }
@@ -692,6 +734,7 @@ int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
         return (modelstate->lcg_output & 1);
     }
     /* fprintf(stderr,"End:  x = %llx, a = %llx, c = %llx, m = %llx\n",x,a,c,m); */
+    modelstate->averageentropy = 0.0;
     return (int)x;
 }
 
@@ -916,6 +959,8 @@ int pcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
     /* If we have no more bits to return, get a new value
      * from the PCG algorithm. Else Shift bits out.
      */
+    modelstate->averageentropy = 0.0;
+    
     if (modelstate->pcg_index == 0) {
 
         /* Update the internal state */
@@ -954,6 +999,7 @@ int xorshiftsource(t_modelstate* modelstate, t_rngstate* rngstate)
 {
     unsigned int x;
     
+    modelstate->averageentropy = 0.0;
     if (modelstate->xorshift_size == 32)
     {
         x = modelstate->xorshift_state_a;
@@ -1011,6 +1057,7 @@ int filesource(t_modelstate* modelstate, t_rngstate* rngstate)
             doneit = 1;
         }
     } while (doneit==0);
+    modelstate->averageentropy = 0.0;
 
     return(result);
 }
@@ -1022,6 +1069,8 @@ int filesourcehex(t_modelstate* modelstate, t_rngstate* rngstate)
     int doneit;
     unsigned char myfilechar;
     doneit = 0;
+    
+    modelstate->averageentropy = 0.0;
 
     /* Fetch characters until we get a hex one.
      * Others are skipped. If we already have
@@ -1131,6 +1180,8 @@ int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate)
     /*int doneit;*/
     unsigned char myfilechar;
     /*doneit = 0;*/
+
+    modelstate->averageentropy = 0.0;
 
     rngstate->reached_eof = 0;
     
@@ -1370,27 +1421,7 @@ void markovsigmoidinit(t_modelstate *modelstate, t_rngstate *rngstate)
     // Starting state
     modelstate->sigmoid_state = (modelstate->states) >> 1;
     
-    //
-    // Set up curve string names
-    //
-    if (modelstate->curve == CURVE_AGEBRAIC) {
-        strcpy(modelstate->curvestr,"Algebraic");
-    } else if (modelstate->curve == CURVE_ATAN) {
-        strcpy(modelstate->curvestr,"Arc Tangent");
-    } else if (modelstate->curve == CURVE_ERF) {
-        strcpy(modelstate->curvestr,"Error Function");
-    } else if (modelstate->curve == CURVE_FLAT) {
-        strcpy(modelstate->curvestr,"Flat");
-    } else if (modelstate->curve == CURVE_GUDERMANN) {
-        strcpy(modelstate->curvestr,"Gudermann");
-    } else if (modelstate->curve == CURVE_LINEAR) {
-        strcpy(modelstate->curvestr,"Linear");
-    } else if (modelstate->curve == CURVE_LOGISTIC) {
-        strcpy(modelstate->curvestr,"Logistic");
-    } else if (modelstate->curve == CURVE_TANH) {
-        strcpy(modelstate->curvestr,"Hyperbolic Tangent");
-    }
-    
+
     //
     // Allocate space for Markov Chain
     //
@@ -1412,7 +1443,7 @@ void markovsigmoidinit(t_modelstate *modelstate, t_rngstate *rngstate)
     stepsize = (range/(states-1));    
     
     if (modelstate->curve == CURVE_FLAT) {
-        for (i=0;i<states;i++) {
+        for (i=0;i<modelstate->states;i++) {
             modelstate->chain[i] = 0.5;
         }
     }
@@ -1438,6 +1469,13 @@ void markovsigmoidinit(t_modelstate *modelstate, t_rngstate *rngstate)
         }
     } 
 
+    if (modelstate->curve == CURVE_TANH) {
+        for (i=0;i<modelstate->states;i++) {
+            x = low+(stepsize*i);
+            modelstate->chain[i] = tanh(x);
+        }
+    }
+    
     if (modelstate->curve == CURVE_ERF) {
         for (i=0;i<modelstate->states;i++) {
             x = low+(stepsize*i);
@@ -1459,26 +1497,36 @@ void markovsigmoidinit(t_modelstate *modelstate, t_rngstate *rngstate)
         }
     }
     
+    // Print out the Markov Chain
+    if (verbose_mode==3) {
+        printf("  MARKOV Chain\n");
+        for (i=0;i<modelstate->states;i++) {
+            fprintf(stderr,"  state=%03d PLeft=%0.4f\n",i,modelstate->chain[i]);  
+        }
+    }
+    
     // Scale the curve to be between 0 and 1
     // First find the highest and lowest point.
     // Then sqish it.
-    themin = 10000.0;
-    themax = -10000.0;
+    if (modelstate->curve != CURVE_FLAT) {
+        themin = 10000.0;
+        themax = -10000.0;
     
-    for (i=0;i<modelstate->states;i++) {
-        if (modelstate->chain[i] > themax) themax=modelstate->chain[i];
-    }
+        for (i=0;i<modelstate->states;i++) {
+            if (modelstate->chain[i] > themax) themax=modelstate->chain[i];
+        }
     
-    for (i=0;i<modelstate->states;i++) {
-        if (modelstate->chain[i] < themin) themin=modelstate->chain[i];
-    }
+        for (i=0;i<modelstate->states;i++) {
+            if (modelstate->chain[i] < themin) themin=modelstate->chain[i];
+        }
     
-    h = themax - themin;    
+        h = themax - themin;    
     
-    for (i=0;i<modelstate->states;i++) {
-        x= modelstate->chain[i];
-        x = (x-themin)/h;
-        modelstate->chain[i] = x;
+        for (i=0;i<modelstate->states;i++) {
+            x= modelstate->chain[i];
+            x = (x-themin)/h;
+            modelstate->chain[i] = x;
+        }
     }
 }
 
