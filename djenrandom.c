@@ -105,6 +105,8 @@ fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the va
 fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model\n");
 
 fprintf(stderr,"\nTwo Parameter Markov model (-m markov_2_param) Options\n\n");
+fprintf(stderr,"  --fast                    Use a fast version on the generator.\n");
+fprintf(stderr,"         and one set of:\n");
 fprintf(stderr,"  --p10=<0.0 to 1.0>        The probability of a 1 following a 0, default 0.5\n");
 fprintf(stderr,"  --p01=<0.0 to 1.0>        The probability of a 0 following a 1, default 0.5\n");
 fprintf(stderr,"         or\n");
@@ -180,7 +182,8 @@ void printsample(unsigned char *thesample)
 double logtwo(double x)
 {
     double result;
-        result = log(x)/log(2);
+        //result = log(x)/log(2);
+        result = log2l(x);
         return(result);
 }
 
@@ -276,8 +279,13 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	}
 	else if (model==MODEL_MARKOV2P)
  	{
-		result = markov2psource(modelstate, rngstate);
-		return result;
+        if (modelstate->fast_m2p==1) {
+		    result = markov2pfastsource(modelstate, rngstate);
+		    return result;
+        } else {
+		    result = markov2psource(modelstate, rngstate);
+		    return result;
+        }
 	}
 	else if (model==MODEL_MARKOV_SIGMOID)
  	{
@@ -338,7 +346,11 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 	}
 	else if (model==MODEL_MARKOV2P)
  	{
-		markov2pinit(modelstate, rngstate);
+        if (modelstate->fast_m2p==1) {
+		    markov2pfastinit(modelstate, rngstate);
+        } else {
+		    markov2pinit(modelstate, rngstate);
+        }
 	}
 	else if (model==MODEL_MARKOV_SIGMOID)
  	{
@@ -407,9 +419,9 @@ int main(int argc, char** argv)
 	int linewidth;
     int lineindex;
     int width;
-    
+   
 	/* unsigned char entropy;*/
-	double sums_entropy;
+	//double sums_entropy;
 	double postxor_entropy;
 	double total_entropy;
 	double prob;
@@ -452,7 +464,8 @@ int main(int argc, char** argv)
 	xmin=0;
 	xmax=0;
 	aesni_supported = 0;
-	
+
+    modelstate.fast_m2p=0;	
 	gotcorrelation = 0;
     gotbias = 0;
     //gotmean = 0;
@@ -492,7 +505,7 @@ int main(int argc, char** argv)
 	modelstate.stepnoise = 0.0;
 	modelstate.p01 = 0.5;
 	modelstate.p10 = 0.5;
-	modelstate.bitwidth=4;
+	modelstate.bitwidth=8;
     
     modelstate.curve = CURVE_LINEAR;
     strcpy(modelstate.curvestr,"Linear");
@@ -501,7 +514,7 @@ int main(int argc, char** argv)
     modelstate.min_range=-1.0;
     modelstate.max_range=1.0;
 	modelstate.xorshift_size=32;
-	sums_entropy = 0.0;
+	//sums_entropy = 0.0;
 	postxor_entropy = 0.0;
 	total_entropy = 0.0;
     width = 32;
@@ -544,6 +557,7 @@ int main(int argc, char** argv)
     { "p10", required_argument, NULL, 0 },
     { "bitwidth", required_argument, NULL, 0 },
     { "entropy", required_argument, NULL, 0 },
+    { "fast", no_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
@@ -728,6 +742,7 @@ int main(int argc, char** argv)
                 break;                
                
             case 0:     /* long option without a short arg */
+                fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
                 if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
                     bits_per_byte = atoi(optarg);
                 }
@@ -743,10 +758,10 @@ int main(int argc, char** argv)
                     modelstate.using_stepnoise = 1;
                     modelstate.stepnoise = atof(optarg);
                 }
-                //if( strcmp( "bias", longOpts[longIndex].name ) == 0 ) {
-                //    modelstate.bias = atof(optarg);
-                //    gotbias=1;
-                //}
+                if( strcmp( "fast", longOpts[longIndex].name ) == 0 ) {
+                    fprintf(stderr,"FAST OPTION Selected\n");
+                    modelstate.fast_m2p=1;
+                }
                 //if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
                 //    modelstate.correlation = atof(optarg);
                 //    gotcorrelation=1;
@@ -1381,69 +1396,85 @@ int main(int argc, char** argv)
 					thebyte = (unsigned char)0x00;
 
 					/* Pull 8 bits */
-					for(i=0; i<8; i++)
-					{
-						if (xormode==1)
-						{
-							for (xoriter=0; xoriter < xorbits; xoriter++)
-							{
-								thebit ^= entropysource(model, &modelstate, &rngstate);
-								if (rngstate.reached_eof == 1)
-								    goto reached_eof;
-								modelstate.lastbit = thebit;
-								prob = modelstate.bias;
-								if (xoriter == 0) pa1 = prob;
-								if (xoriter == 1) pb1 = prob;
-								if (xoriter == 2) pc1 = prob;
-							}
-							if (xorbits==2) postxor_entropy = bias2entropy(xorbias_2bit(pa1,pb1));
-							if (xorbits==3) postxor_entropy = bias2entropy(xorbias_3bit(pa1,pb1,pc1));
-							total_entropy += postxor_entropy;
-						}
-						else if (using_xor_range==1)
-						{
-							xorrange = 1+xmax-xmin;
-							xorselector = getrand16(&rngstate);
-							xorselector = xorselector % xorrange;
-							xorbits = xorselector;
-	
-							for (xoriter=0; xoriter < (xmin+xorbits); xoriter++)
-							{
-								thebit ^= entropysource(model, &modelstate, &rngstate);
-								if (rngstate.reached_eof == 1) goto reached_eof;
-								modelstate.lastbit = thebit;
-								prob = modelstate.bias;
-								sums_entropy = bias2entropy(prob);
-							}
-						}
-						else /* no xorring */
-						{
-							thebit = entropysource(model, &modelstate, &rngstate);
-							if (rngstate.reached_eof == 1) {
-							    if ((samplenum > 0) && (samplenum < 256)) {
-							        /*fprintf(stderr,"reached EOF with samplenum > 0 = %d\n",samplenum);*/
-							        goto eof_with_partial_block;
-							    }
-							    else {
-							        /*fprintf(stderr,"Going to EOF with full block. samplenum = %d\n",samplenum);*/
-							        goto reached_eof;
-							    }
-							}
-							modelstate.lastbit = thebit;
-							prob = modelstate.bias;
-							sums_entropy = bias2entropy(prob);
-							total_entropy += sums_entropy;
-						}
+                    if ((model==MODEL_MARKOV2P) && (modelstate.fast_m2p==1)) {
+                        thebyte = markov2pfastsource(&modelstate, &rngstate);
+                        //if (rngstate.reached_eof == 1) {
+                        //    if ((samplenum > 0) && (samplenum < 256)) {
+                        //        /*fprintf(stderr,"reached EOF with samplenum > 0 = %d\n",samplenum);*/
+                        //        goto eof_with_partial_block;
+                        //    }
+                        //    else {
+                        //        /*fprintf(stderr,"Going to EOF with full block. samplenum = %d\n",samplenum);*/
+                        //        goto reached_eof;
+                        //    }
+                        //}
+                        //modelstate.lastbit = thebit;
+                        //prob = modelstate.bias;
+                    } else {
+                        for(i=0; i<8; i++)
+                        {
+                            if (xormode==1)
+                            {
+                                for (xoriter=0; xoriter < xorbits; xoriter++)
+                                {
+                                    thebit ^= entropysource(model, &modelstate, &rngstate);
+                                    if (rngstate.reached_eof == 1)
+                                        goto reached_eof;
+                                    modelstate.lastbit = thebit;
+                                    prob = modelstate.bias;
+                                    if (xoriter == 0) pa1 = prob;
+                                    if (xoriter == 1) pb1 = prob;
+                                    if (xoriter == 2) pc1 = prob;
+                                }
+                                if (xorbits==2) postxor_entropy = bias2entropy(xorbias_2bit(pa1,pb1));
+                                if (xorbits==3) postxor_entropy = bias2entropy(xorbias_3bit(pa1,pb1,pc1));
+                                total_entropy += postxor_entropy;
+                            }
+                            else if (using_xor_range==1)
+                            {
+                                xorrange = 1+xmax-xmin;
+                                xorselector = getrand16(&rngstate);
+                                xorselector = xorselector % xorrange;
+                                xorbits = xorselector;
+        
+                                for (xoriter=0; xoriter < (xmin+xorbits); xoriter++)
+                                {
+                                    thebit ^= entropysource(model, &modelstate, &rngstate);
+                                    if (rngstate.reached_eof == 1) goto reached_eof;
+                                    modelstate.lastbit = thebit;
+                                    //prob = modelstate.bias;
+                                    //sums_entropy = bias2entropy(prob);
+                                }
+                            }
+                            else /* no xorring */
+                            {
+                                thebit = entropysource(model, &modelstate, &rngstate);
+                                if (rngstate.reached_eof == 1) {
+                                    if ((samplenum > 0) && (samplenum < 256)) {
+                                        /*fprintf(stderr,"reached EOF with samplenum > 0 = %d\n",samplenum);*/
+                                        goto eof_with_partial_block;
+                                    }
+                                    else {
+                                        /*fprintf(stderr,"Going to EOF with full block. samplenum = %d\n",samplenum);*/
+                                        goto reached_eof;
+                                    }
+                                }
+                                modelstate.lastbit = thebit;
+                                prob = modelstate.bias;
+                                //sums_entropy = bias2entropy(prob);
+                                //total_entropy += sums_entropy;
+                            }
 
-						if ((thebit & 0x01)==1)
-						{
-							thebyte = (thebyte << 1) | 0x01;
-						}
-						else
-						{
-							thebyte = (thebyte << 1) & 0xfe;
-						}
-					}
+                            if ((thebit & 0x01)==1)
+                            {
+                                thebyte = (thebyte << 1) | 0x01;
+                            }
+                            else
+                            {
+                                thebyte = (thebyte << 1) & 0xfe;
+                            }
+                        } // end for i = 1..7
+					} // end else not fast
 
 					thesample[samplenum]=thebyte;
 				}

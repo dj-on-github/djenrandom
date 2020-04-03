@@ -59,13 +59,19 @@ typedef struct {
         char   curvestr[25];
 		double p01;
 		double p10;
+        int    markov2p_phase;
+        int    markov2p_symbol;
+        int    *sampletable0;
+        int    *sampletable1;
+        int    p01_threshold;
+        int    p10_threshold;
 		int    bitwidth;
         int    gotentropy;
         int    gotp01;
         int    gotp10;
         int    gotbias;
         int    gotcorrelation;
-		
+        int    fast_m2p;		
 		unsigned long long lcg_a; /* LCG Model */
 		unsigned long long lcg_c;
 		unsigned long long lcg_m;
@@ -161,6 +167,7 @@ int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int markov2psource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markov2pfastsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int markovsigmoidsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int sinbiassource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -182,6 +189,7 @@ void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
 void markov2pinit(   t_modelstate* modelstate, t_rngstate* rngstate);
+void markov2pfastinit(t_modelstate* modelstate, t_rngstate* rngstate);
 void markovsigmoidinit(t_modelstate* modelstate, t_rngstate* rngstate);
 void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
 void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);

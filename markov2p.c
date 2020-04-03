@@ -64,6 +64,335 @@ void print_symbol(uint64_t x, int bitwidth) {
     msymboltext[bitwidth]=(char)0;
 }
 
+// Make two probability density functions for all the 2^bitwidth symbols
+// One for when the previous bit is 0, one for when it is 1.
+void make_pdf(double p01, double p10, int bitwidth, double *table0, double *table1) {
+    double p00;
+    double p11;
+    double plist0;
+    double plist1;
+    int bp;
+    int x; 
+    int i;
+    double sum0 = 0.0;
+    double sum1 = 0.0;
+    
+    p00 = 1.0-p01;
+    p11 = 1.0-p10;
+   
+    // For each symbol
+    for (x=0;x<(1 << bitwidth);x++) {
+        //fprintf(stderr," MAKE_PDF symbol %02x \n",x); 
+        if ((p01==0.5) && (p10==0.5)){
+            table0[x] = 1.0/(1<<bitwidth);
+            table1[x] = 1.0/(1<<bitwidth);
+            sum0 += table0[x];
+            sum1 = sum0;
+        } else {
+            plist0 = 1.0;
+            plist1 = 1.0;
+
+            if ((x & 0x1)==0) { // first bit with previous last bit
+                plist0 *= p00;
+                plist1 *= p10;
+                //if (verbose_mode==1) {
+                //    if (x==0xaa) {
+                //        fprintf(stderr," 0XAA !!\n");
+                //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.6f\n",0,p00,0,p10);
+                //    }
+                //    if (x==0xa9) {
+                //        fprintf(stderr," 0XA9 !!\n");
+                //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p00,0,p10);
+                //    }
+                //}
+            } else {
+                plist0 *= p01;
+                plist1 *= p11;
+                    //if (verbose_mode==1) {
+                    //    if (x==0xaa) {
+                    //        fprintf(stderr," 0XAA !!\n");
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p01,0,p11);
+                    //    }
+                    //    if (x==0xa9) {
+                    //        fprintf(stderr," 0XA9 !!\n");
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p01,0,p11);
+                    //    }
+                    //}
+            }
+
+            for (i=0;i<(bitwidth-1);i++) {
+                bp = ((x >> i) & 0x3);  // Get the bit pair
+                if (bp==0) {
+                    plist0 *= p00;
+                    plist1 *= p00;
+                    //if (verbose_mode==1) {
+                    //    if ((x==0xaa) || (x==0xa9)) {
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p00,0,p00);
+                    //    }
+                    //}
+                } else if (bp==1) {
+                    plist0 *= p10;
+                    plist1 *= p10;
+                    //if (verbose_mode==1) {
+                    //    if ((x==0xaa) || (x==0xa9)) {
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p10,0,p10);
+                    //    }
+                    //}
+                } else if (bp==2) {
+                    plist0 *= p01;
+                    plist1 *= p01;
+                    //if (verbose_mode==1) {
+                    //    if ((x==0xaa) || (x==0xa9)) {
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p01,0,p01);
+                    //    }
+                    //}
+                } else if (bp==3) {
+                    plist0 *= p11;
+                    plist1 *= p11;
+                    //if (verbose_mode==1) {
+                    //    if ((x==0xaa) || (x==0xa9)) {
+                    //        fprintf(stderr,"plist0_%d = %1.4f  plist1_%d = %1.4f\n",0,p11,0,p11);
+                    //    }
+                    //}
+                }
+            }
+            //if (verbose_mode==1) {
+            //    if ((x==0xaa) || (x==0xa9)) {
+            //        fprintf(stderr,"  FINAL plist0 %1.6f  plist1 %1.6f\n",plist0,plist1);
+            //    }
+            //} 
+            table0[x] = plist0;
+            table1[x] = plist1;
+            //if (verbose_mode==1) {
+            //    if ((x==0xaa) || (x==0xa9)) {
+            //        fprintf(stderr,"  SET table0[%02x]= %1.6f  table1[%02x] %1.6f\n",x,plist0,x,plist1);
+            //    }
+            //}   
+            sum0 += plist0;
+            sum1 += plist1;      
+        } // end if else
+        
+    } // end for
+
+    for (i=0;i<256;i++) {
+        table0[i] = table0[i]/sum0;
+        table1[i] = table1[i]/sum1;
+    }
+
+    //if (verbose_mode==1) {
+    //    fprintf(stderr, "END MAKE_PDF() pdf_table0[a9]=%1.6f\n",table0[0xa9]);
+    //    fprintf(stderr, "END MAKE_PDF() pdf_table0[aa]=%1.6f\n",table0[0xaa]);
+    //    fprintf(stderr, "END MAKE_PDF() pdf_table1[a9]=%1.6f\n",table1[0xa9]);
+    //    fprintf(stderr, "END MAKE_PDF() pdf_table1[aa]=%1.6f\n",table1[0xaa]);
+    //}
+}
+    
+// Make two cumulative density functions for all the 2^bitwidth symbols
+// One for when the previous bit is 0, one for when it is 1.
+void make_cdf(double p01, double p10, int bitwidth, double *table0, double *table1) {
+    double p00;
+    double p11;
+    double plist0;
+    double plist1;
+    int bp;
+    int x; 
+    int i;
+ 
+    p00 = 1.0-p01;
+    p11 = 1.0-p10;
+   
+    // For each symbol
+    for (x=0;x<(1 << bitwidth);x++) {
+        
+        if ((p01==0.5) && (p10==0.5)){
+            if (x==0) {
+                table0[x] = 1.0/(1<<bitwidth);
+                table1[x] = 1.0/(1<<bitwidth);
+            } else {
+                table0[x] = table0[x-1] + (1.0/(1<<bitwidth));
+                table1[x] = table1[x-1] + (1.0/(1<<bitwidth));
+            }
+        } else {
+            plist0 = 1.0;
+            plist1 = 1.0;
+
+            if ((x & 0x1)==0) {
+                plist0 *= p00;
+                plist1 *= p10;
+            } else {
+                plist0 *= p01;
+                plist1 *= p11;
+            }
+
+            for (i=0;i<(bitwidth-1);i++) {
+                bp = (x>>i) & 0x3;  // Get the bit pair
+                if (bp==0) {
+                    plist0 *= p00;
+                    plist1 *= p00;
+                } else if (bp==1) {
+                    plist0 *= p10;
+                    plist1 *= p10;
+                } else if (bp==2) {
+                    plist0 *= p01;
+                    plist1 *= p01;
+                } else if (bp==3) {
+                    plist0 *= p11;
+                    plist1 *= p11;
+                }
+            }
+       
+            if (x==0) {
+                table0[x] = plist0;
+                table1[x] = plist1;         
+            } else {
+                table0[x] = table0[x-1]+plist0;
+                table1[x] = table1[x-1]+plist1;
+            }         
+        }
+        
+    }
+    
+    double max0=table0[((1 << bitwidth)-1)];
+    double max1=table1[((1 << bitwidth)-1)];
+    for (i=0;i<(1<<bitwidth);i++) {
+        table0[i] = table0[i]/max0;
+        table1[i] = table1[i]/max1;
+    }
+     
+}
+
+void make_sample_table(double p01, double p10, int bitwidth, int **sampletable0, int **sampletable1) {
+    double *table0;
+    double *table1;
+    double *pdf_table0;
+    double *pdf_table1;
+    int *st0;
+    int *st1;
+    int x;
+    int i;
+    int index;
+
+    //double sum=0.0;
+
+    table0 = (double *)malloc(sizeof(double)*(1 << bitwidth));
+    table1 = (double *)malloc(sizeof(double)*(1 << bitwidth));
+    pdf_table0 = (double *)malloc(sizeof(double)*(1 << bitwidth));
+    pdf_table1 = (double *)malloc(sizeof(double)*(1 << bitwidth));
+
+    //if (verbose_mode==1) {
+    //    fprintf(stderr," table0 malloc size = %d\n",(1<<bitwidth));
+    //}
+    
+    if ((table0==0) || (table1==0) || (pdf_table0==0) || (pdf_table1==0))  {
+        fprintf(stderr,"Error, could not allocate symbol table for Markov symbol lookups\n");
+        exit(1);
+    }
+    
+    
+        //if (verbose_mode==1) {
+        //    fprintf(stderr,"  CALLING make_cdf()\n");
+        //}
+    make_cdf(p01, p10, bitwidth, table0, table1);
+        //if (verbose_mode==1) {
+        //    fprintf(stderr,"  CALLING make_pdf()\n");
+        //}
+    make_pdf(p01, p10, bitwidth, pdf_table0, pdf_table1);
+
+    //if (verbose_mode==1) {
+    //    fprintf(stderr, " AFTER CALLING make_pdf()\n");
+    //    fprintf(stderr, "    MAKE_PDF() pdf_table0[a9]=%1.6f\n",pdf_table0[0xa9]);
+    //    fprintf(stderr, "    MAKE_PDF() pdf_table0[aa]=%1.6f\n",pdf_table0[0xaa]);
+    //    fprintf(stderr, "    MAKE_PDF() pdf_table1[a9]=%1.6f\n",pdf_table1[0xa9]);
+    //    fprintf(stderr, "    MAKE_PDF() pdf_table1[aa]=%1.6f\n",pdf_table1[0xaa]);
+    //}
+
+    //if (verbose_mode==1) {
+    //    fprintf(stderr,"PDF Table 0 ==\n");
+    //    for (i=0;i<(1<<bitwidth);i++) {
+    //        sum += pdf_table0[i];
+    //        fprintf(stderr,"%02x:%1.6f ", i,pdf_table0[i]);
+    //        if ((i>1) && ((i+1) % 8 ==0)) fprintf(stderr,"\n");
+    //    }
+    //
+    //    fprintf(stderr,"\n");
+    //    fprintf(stderr,"table0 sum == %f\n",sum);
+    //}
+
+    //if (verbose_mode==1) {
+    //    sum = 0.0;
+    //    fprintf(stderr,"PDF Table 1 ==\n");
+    //    for (i=0;i<(1<<bitwidth);i++) {
+    //        sum += pdf_table1[i];
+    //        fprintf(stderr,"%02x:%1.6f ", i,pdf_table1[i]);
+    //        if ((i>1) && ((i+1) % 8 ==0)) fprintf(stderr,"\n");
+    //    }
+    //    fprintf(stderr,"\n");
+    //    fprintf(stderr,"table1 sum == %f\n",sum);
+    //}
+    
+
+    st0 = (int *)malloc(sizeof(int)*(1 << 20));    
+    st1 = (int *)malloc(sizeof(int)*(1 << 20));
+
+    if ((st0==0) || (st1==0)) {
+        fprintf(stderr,"Error, could not allocate 1M int sample tables for Markov generator\n");
+        exit(1);
+    }
+
+    // populate the 1M table with symbols according to the CDF.
+    //   Do this by identifying the boundaries between the runs
+    //   of the same symbols and filling in the symbols up to the
+    //   boundary.
+    double floatpos;
+    int baseindex=0;
+    for (x=0;x<256;x++) {
+        floatpos = table0[x];
+        index = (int)(floatpos*(1<<20));
+        for (i=baseindex;i<index;i++) {
+            st0[i]=x; // assign the symbol into table
+        }
+        baseindex = index; // start the next block one position on.
+    }
+
+    baseindex=0;
+    for (x=0;x<256;x++) {
+        floatpos = table1[x];
+        index = (int)(floatpos*(1<<20));
+        for (i=baseindex;i<index;i++) {
+            st1[i]=x; // assign the symbol into table
+        }
+        baseindex = index; // start the next block one position on.
+    }
+    //for (x=0;x<(1 << bitwidth); x++) {
+    //    for (i=0; i<(int)(table0[x]*(1 << 20)); i++) {
+    //        if (index > ((1 << 20)-1)) index=index; //fprintf(stderr,"ERROR, st0 table index too large");
+    //        else st0[index]=x;
+    //        index++;
+    //    }
+    //}
+    //
+    //index = 0;
+    //for (x=0;x<(1 << bitwidth); x++) {
+    //    for (i=0; i<(int)(table1[x]*(1 << 20)); i++) {
+    //        if (index > ((1 << 20)-1)) index=index; //fprintf(stderr,"ERROR, st1 table index too large");
+    //        else st1[index]=x;
+    //        index++;
+    //    }
+    //}
+
+    
+    free(table0);
+    free(table1);
+
+    *sampletable0 = st0;
+    *sampletable1 = st1;
+}
+
+void free_sample_table(int *sampletable0, int *sampletable1) {
+    free(sampletable0);
+    free(sampletable1); 
+}
+
 
 
 // Compute the min entropy per symbol for the
@@ -142,6 +471,8 @@ double symbol_prob(double p01, double p10, uint64_t x, int bitwidth) {
             //fprintf(stderr," plist0=%f * p11(%f)  ",plist0,p11);
             //fprintf(stderr," plist1=%f * p11(%f)\n",plist1,p11);
         }
+
+        
     }
     
     p = (p0 * plist0) + (p1 * plist1);

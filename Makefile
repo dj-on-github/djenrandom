@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I/usr/local/include -m64 -g -Wall -maes
+CFLAGS = -I/usr/local/include -m64 -Wall -maes
 LDFLAGS = -L/usr/local/lib 
 LDLIBS = -lm
 

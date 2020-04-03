@@ -52,5 +52,5 @@ double symbol_max_probability(double p01, double p10,int bitwidth,uint64_t *mcv)
 double p_to_entropy(double p01, double p10,int bitwidth, double *mcv_prob, uint64_t *mcv) ;
 int near(double x,double y, double epsilon) ;
 void pick_point(double *p01, double *p10, double desired, double epsilon, int bitwidth, t_rngstate* rngstate) ;
-
+void make_sample_table(double p01, double p10, int bitwidth, int **sampletable0, int **sampletable1) ;
 
