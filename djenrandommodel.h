@@ -125,6 +125,13 @@ typedef struct {
 		FILE *jfile;
 		int using_infile;
 		FILE *infile;
+        int using_json;
+        int using_yaml;
+        FILE *json_file;
+        FILE *yaml_file;
+        char filename[1000];
+        int using_ofile;
+
 	} t_modelstate;
 
 typedef struct {

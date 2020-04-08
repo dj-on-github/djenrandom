@@ -80,6 +80,7 @@ fprintf(stderr,"       [--states=<integer of number of states in the markov chai
 fprintf(stderr,"       [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]\n");
 fprintf(stderr,"       [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
+fprintf(stderr,"       [-J <json_filename>] [-Y <yaml_filename>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
 fprintf(stderr,"\n");
@@ -155,6 +156,8 @@ fprintf(stderr,"  -o <output_filename>             output file\n");
 fprintf(stderr,"  -j, --jfile=<j filename>         filename to push source model internal state to\n");
 fprintf(stderr,"  -i, --infile=<input filename>    filename of entropy file for file model\n");
 fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored\n");
+fprintf(stderr,"  -J, --json=<JSON filename>       filename to output JSON information of the data to\n");
+fprintf(stderr,"  -Y, --yaml=<YAML filename>       filename to output YAML information of the data to\n");
 fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n");
 
 fprintf(stderr,"\nOutput Format Options\n\n");
@@ -407,8 +410,11 @@ int main(int argc, char** argv)
 	int kilobytes;
 	int no_k=1;
 	int ofile;
+	char errstr[2000];
 	char filename[1000];
 	char jfilename[1000];
+	char json_filename[1000];
+	char yaml_filename[1000];
 	char infilename[1000];
 	int model;
 	int using_xor_range;
@@ -441,7 +447,8 @@ int main(int argc, char** argv)
     int gotp10;
     int gotentropy;
     //int gotbitwidth;
-    
+	FILE *fp=NULL;
+
     //double epsilon;
     
 	/* Defaults */
@@ -455,6 +462,7 @@ int main(int argc, char** argv)
 	kilobytes = 1;
 	modelstate.using_jfile = 0;
 	modelstate.using_infile = 0;
+    modelstate.using_ofile = 0;
 	input_format = INFORMAT_HEX;
 	rngstate.input_format = INFORMAT_HEX;
 	rngstate.randseed=0;
@@ -521,9 +529,19 @@ int main(int argc, char** argv)
 	linewidth = 32;
     
     filename[0] = (char)0;
+    modelstate.filename[0] = (char)0;
 	jfilename[0] = (char)0;
 	infilename[0] = (char)0;
-    
+    json_filename[0] = (char)0;
+    yaml_filename[0] = (char)0;
+
+    fp = NULL;
+    modelstate.jfile = NULL;
+    modelstate.infile = NULL;
+    modelstate.yaml_file = NULL;
+    modelstate.json_file = NULL;
+
+
     aesni_supported = aesni_check_support();
 
 	int tempa;
@@ -550,7 +568,7 @@ int main(int argc, char** argv)
 
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:C:o:j:i:f:k:V:w:bxsnvh";
+    char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
@@ -599,6 +617,8 @@ int main(int argc, char** argv)
     
     { "output", required_argument, NULL, 'o' },
     { "jfile", required_argument, NULL, 'j' },
+    { "json", required_argument, NULL, 'J' },
+    { "yaml", required_argument, NULL, 'Y' },
     { "infile", required_argument, NULL, 'i' },
     { "informat", required_argument, NULL, 'f' },
     { "blocks", required_argument, NULL, 'k' },
@@ -677,11 +697,23 @@ int main(int argc, char** argv)
             case 'o':
                 ofile = 1;
                 strcpy(filename,optarg);
+                strcpy(modelstate.filename,filename);
+                modelstate.using_ofile=1;
                 break;
                 
             case 'j':
                 modelstate.using_jfile = 1;
                 strcpy(jfilename,optarg);
+                break;
+                
+            case 'J':
+                modelstate.using_json = 1;
+                strcpy(json_filename,optarg);
+                break;
+
+            case 'Y':
+                modelstate.using_yaml = 1;
+                strcpy(yaml_filename,optarg);
                 break;
             
             case 'i':
@@ -742,7 +774,7 @@ int main(int argc, char** argv)
                 break;                
                
             case 0:     /* long option without a short arg */
-                fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
+                //fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
                 if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
                     bits_per_byte = atoi(optarg);
                 }
@@ -759,7 +791,7 @@ int main(int argc, char** argv)
                     modelstate.stepnoise = atof(optarg);
                 }
                 if( strcmp( "fast", longOpts[longIndex].name ) == 0 ) {
-                    fprintf(stderr,"FAST OPTION Selected\n");
+                    //fprintf(stderr,"FAST OPTION Selected\n");
                     modelstate.fast_m2p=1;
                 }
                 //if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
@@ -1285,13 +1317,13 @@ int main(int argc, char** argv)
 	}
 
 	/* open the output file if needed */
-	FILE *fp;
 
 	if (ofile==1)
 	{
 		fp = fopen(filename, "wb");
 		if (fp == NULL) {
-			perror("failed to open output file for writing");
+		    sprintf(errstr,"failed to open output file %s for writing",filename);
+			perror(errstr);
 			exit(1);
 		}
 	}
@@ -1301,7 +1333,8 @@ int main(int argc, char** argv)
 	{
 		modelstate.jfile = fopen(jfilename, "wb");
 		if (modelstate.jfile == NULL) {
-			perror("failed to open output j file for writing");
+			sprintf(errstr,"failed to open output j file %s for writing",jfilename);
+			perror(errstr);
 			exit(1);
 		}
 	}
@@ -1314,7 +1347,8 @@ int main(int argc, char** argv)
 	    else
 		    modelstate.infile =  fopen(infilename, "r");
 		if (modelstate.infile == NULL) {
-			perror("failed to open input file for reading");
+            sprintf(errstr,"Failed to input file %s for reading",infilename);
+			perror(errstr);
 			exit(1);
 		}
 		else
@@ -1323,6 +1357,34 @@ int main(int argc, char** argv)
 				fprintf(stderr,"opened input file %s for reading\n",infilename);
 		}
 	}
+
+    /* Open the JSON File if needed */
+    if (modelstate.using_json==1) {
+        modelstate.json_file = fopen(json_filename,"w");
+        if (modelstate.json_file == NULL) {
+            sprintf(errstr,"Failed to open JSON output file %s for writing\n",json_filename);
+            perror(errstr);
+            exit(1);
+        }
+		else {
+			if (verbose_mode>0)
+				fprintf(stderr,"opened JSON ouput file %s for writing\n",json_filename);
+		}
+    }
+
+    /* Open the YAML File if needed */
+    if (modelstate.using_yaml==1) {
+        modelstate.yaml_file = fopen(yaml_filename,"w");
+        if (modelstate.yaml_file == NULL) {
+            sprintf(errstr,"Failed to open YAML output file %s for writing\n",yaml_filename);
+            perror(errstr);
+            exit(1);
+        }
+		else {
+			if (verbose_mode>0)
+				fprintf(stderr,"opened YAML ouput file %s for writing\n",yaml_filename);
+		}
+    }
 
 	/* Initialize the RNG */
 	initialize_sim(model, &modelstate, &rngstate);
@@ -1591,6 +1653,12 @@ int main(int argc, char** argv)
 			fprintf(stderr,"Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));
 		}
 	}
+
+    if (fp                   != NULL) fclose(fp);
+    if (modelstate.jfile     != NULL) fclose(modelstate.jfile);
+    if (modelstate.infile    != NULL) fclose(modelstate.infile);
+    if (modelstate.json_file != NULL) fclose(modelstate.json_file);
+    if (modelstate.yaml_file != NULL) fclose(modelstate.yaml_file);
 	return 0;
 
 }

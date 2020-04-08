@@ -1362,6 +1362,8 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
     unsigned char out[16];
     double epsilon;
+    double mcv_prob;
+    uint64_t mcv;
 
     //smoothinit(modelstate, rngstate);
     if (rngstate->randseed==1)
@@ -1396,11 +1398,13 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
         //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
         //fprintf(stderr,"p01 = %f\n",modelstate.p01);
         //fprintf(stderr,"p10 = %f\n",modelstate.p10);
+        modelstate->entropy=p_to_entropy(modelstate->p01, modelstate->p10,8, &mcv_prob, &mcv);
     } else if ((modelstate->gotp01 == 1) || (modelstate->gotp10==1))  {
         if (modelstate->gotp01==0) modelstate->p01 = 0.5;
         if (modelstate->gotp10==0) modelstate->p10 = 0.5;
         modelstate->correlation = 1.0 - modelstate->p10 - modelstate->p01;
         modelstate->bias  = modelstate->p10/(modelstate->p10+modelstate->p01);
+        modelstate->entropy=p_to_entropy(modelstate->p01, modelstate->p10,8, &mcv_prob, &mcv);
     } else if (modelstate->gotentropy==0) {
         modelstate->entropy = 1.0;
         modelstate->p01 = 0.5;
@@ -1421,6 +1425,34 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
         fprintf(stderr,"  Bits per symbol = %d\n",modelstate->bitwidth);
     }
 
+    if (modelstate->using_yaml > 0)
+    {
+        fprintf(modelstate->yaml_file,"model:markov_2_param\n");
+        if (modelstate->using_ofile==1)
+            fprintf(modelstate->yaml_file,"filename:%s\n",modelstate->filename);
+        fprintf(modelstate->yaml_file,"bias:%f\n",modelstate->bias);
+        fprintf(modelstate->yaml_file,"scc:%f\n",modelstate->correlation);
+        fprintf(modelstate->yaml_file,"p01:%f\n",modelstate->p01);
+        fprintf(modelstate->yaml_file,"p10:%f\n",modelstate->p10);
+        fprintf(modelstate->yaml_file,"minentropy:%f\n",modelstate->entropy);
+        fprintf(modelstate->yaml_file,"bits_per_symbol:1\n");
+    }
+
+    if (modelstate->using_json > 0)
+    {
+        fprintf(modelstate->json_file,"{\n");
+        fprintf(modelstate->json_file,"  \"model\"           : \"markov_2_param\"\n");
+        if (modelstate->using_ofile==1)
+            fprintf(modelstate->json_file,"  \"filename\"        : \"%s\"\n",modelstate->filename);
+        fprintf(modelstate->json_file,"  \"bias\"            : \"%f\"\n",modelstate->bias);
+        fprintf(modelstate->json_file,"  \"scc\"             : \"%f\"\n",modelstate->correlation);
+        fprintf(modelstate->json_file,"  \"p01\"             : \"%f\"\n",modelstate->p01);
+        fprintf(modelstate->json_file,"  \"p10\"             : \"%f\"\n",modelstate->p10);
+        fprintf(modelstate->json_file,"  \"minentropy\"      : \"%f\"\n",modelstate->entropy);
+        fprintf(modelstate->json_file,"  \"bits_per_symbol\" : \"1\"\n");
+        fprintf(modelstate->json_file,"}\n");
+    }
+
 }
 
 void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
@@ -1431,6 +1463,8 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
     double p10_dthreshold;
     int *sampletable0;
     int *sampletable1;
+    double mcv_prob;
+    uint64_t mcv;
 
     //smoothinit(modelstate, rngstate);
     if (rngstate->randseed==1)
@@ -1465,11 +1499,13 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
         //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
         //fprintf(stderr,"p01 = %f\n",modelstate.p01);
         //fprintf(stderr,"p10 = %f\n",modelstate.p10);
+        modelstate->entropy=p_to_entropy(modelstate->p01, modelstate->p10,8, &mcv_prob, &mcv);
     } else if ((modelstate->gotp01 == 1) || (modelstate->gotp10==1))  {
         if (modelstate->gotp01==0) modelstate->p01 = 0.5;
         if (modelstate->gotp10==0) modelstate->p10 = 0.5;
         modelstate->correlation = 1.0 - modelstate->p10 - modelstate->p01;
         modelstate->bias  = modelstate->p10/(modelstate->p10+modelstate->p01);
+        modelstate->entropy=p_to_entropy(modelstate->p01, modelstate->p10,8, &mcv_prob, &mcv);
     } else if (modelstate->gotentropy==0) {
         modelstate->entropy = 1.0;
         modelstate->p01 = 0.5;
@@ -1502,6 +1538,34 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
         fprintf(stderr,"  entropy         = %f\n",modelstate->entropy);
         //fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
         fprintf(stderr,"  Bits per symbol = %d\n",modelstate->bitwidth);
+    }
+
+    if (modelstate->using_json > 0)
+    {
+        fprintf(modelstate->json_file,"{\n");
+        fprintf(modelstate->json_file,"  \"model\"           : \"markov_2_param\"\n");
+        if (modelstate->using_ofile==1)
+            fprintf(modelstate->json_file,"  \"filename\"        : \"%s\"\n",modelstate->filename);
+        fprintf(modelstate->json_file,"  \"bias\"            : \"%f\"\n",modelstate->bias);
+        fprintf(modelstate->json_file,"  \"scc\"             : \"%f\"\n",modelstate->correlation);
+        fprintf(modelstate->json_file,"  \"p01\"             : \"%f\"\n",modelstate->p01);
+        fprintf(modelstate->json_file,"  \"p10\"             : \"%f\"\n",modelstate->p10);
+        fprintf(modelstate->json_file,"  \"minentropy\"      : \"%f\"\n",modelstate->entropy);
+        fprintf(modelstate->json_file,"  \"bits_per_symbol\" : \"%d\"\n",modelstate->bitwidth);
+        fprintf(modelstate->json_file,"}\n");
+    }
+
+    if (modelstate->using_yaml > 0)
+    {
+        fprintf(modelstate->yaml_file,"model:markov_2_param\n");
+        if (modelstate->using_ofile==1)
+            fprintf(modelstate->yaml_file,"filename:%s\n",modelstate->filename);
+        fprintf(modelstate->yaml_file,"bias:%f\n",modelstate->bias);
+        fprintf(modelstate->yaml_file,"scc:%f\n",modelstate->correlation);
+        fprintf(modelstate->yaml_file,"p01:%f\n",modelstate->p01);
+        fprintf(modelstate->yaml_file,"p10:%f\n",modelstate->p10);
+        fprintf(modelstate->yaml_file,"minentropy:%f\n",modelstate->entropy);
+        fprintf(modelstate->yaml_file,"bits_per_symbol:%d\n",modelstate->bitwidth);
     }
 
 }
