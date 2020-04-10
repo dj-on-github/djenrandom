@@ -742,7 +742,7 @@ int main(int argc, char** argv)
                 break;                
                
             case 0:     /* long option without a short arg */
-                fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
+                //fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
                 if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
                     bits_per_byte = atoi(optarg);
                 }
@@ -759,7 +759,7 @@ int main(int argc, char** argv)
                     modelstate.stepnoise = atof(optarg);
                 }
                 if( strcmp( "fast", longOpts[longIndex].name ) == 0 ) {
-                    fprintf(stderr,"FAST OPTION Selected\n");
+                    //fprintf(stderr,"FAST OPTION Selected\n");
                     modelstate.fast_m2p=1;
                 }
                 //if( strcmp( "correlation", longOpts[longIndex].name ) == 0 ) {
