@@ -1261,11 +1261,25 @@ void init_rng(t_rngstate* rngstate) {
     unsigned char realrand[16];
     unsigned char out[16];
 
+    unsigned char cmac_key_a[16];
+    unsigned char cmac_key_b[16];
+    unsigned char cmac_k1[16];
+    unsigned char cmac_k2[16];
     /* Set k and v to some arbitary values */
     for (i=0;i<16;i++)
     {
         rngstate->k[i] = (unsigned char)55;
         rngstate->v[i] = (unsigned char)33;
+    }
+
+    if (rngstate->got_detseed==1)
+    {
+        for(i=0;i<16;i++) {
+            cmac_key_a[i]=(unsigned char)i;
+            cmac_key_b[i]=(unsigned char)(i+16);
+        }
+        cmac(cmac_key_a, cmac_k1, cmac_k2, rngstate->detseed, strlen(rngstate->detseed), rngstate->k);
+        cmac(cmac_key_b, cmac_k1, cmac_k2, rngstate->detseed, strlen(rngstate->detseed), rngstate->v);
     }
 
     if (rngstate->randseed==1)

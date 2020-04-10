@@ -83,6 +83,7 @@ fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filen
 fprintf(stderr,"       [-J <json_filename>] [-Y <yaml_filename>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
 fprintf(stderr,"       [-k <1K_Blocks>] [-w [1..256]]\n");
+fprintf(stderr,"       [-D <deterministic seed string>]\n");
 fprintf(stderr,"\n");
 fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
 fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
@@ -146,7 +147,8 @@ fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
 fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample\n");
 fprintf(stderr,"  -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be chosen at random per sample\n");
-fprintf(stderr,"  -s, --seed                     seed the internal RNG with /dev/random\n");
+fprintf(stderr,"  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random\n");
+fprintf(stderr,"  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string\n");
 fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
 fprintf(stderr,"  -c, --cmax=<generate length>   number of PRNG generates before a reseed\n");
 fprintf(stderr,"  -v, --verbose                  output the parameters\n");
@@ -464,6 +466,8 @@ int main(int argc, char** argv)
 	modelstate.using_infile = 0;
     modelstate.using_ofile = 0;
 	input_format = INFORMAT_HEX;
+    rngstate.got_detseed=0;
+    rngstate.detseed[0]=0;
 	rngstate.input_format = INFORMAT_HEX;
 	rngstate.randseed=0;
 	rngstate.rdrand_available=0;
@@ -568,7 +572,7 @@ int main(int argc, char** argv)
 
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:bxsnvh";
+    char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:D:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "p01", required_argument, NULL, 0 },
@@ -581,6 +585,7 @@ int main(int argc, char** argv)
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
     { "seed", no_argument, NULL, 's' },
+    { "detseed", required_argument, NULL, 'D' },
     { "noaesni", no_argument, NULL, 'n' },
     { "cmax", required_argument, NULL, 'c' },
     { "model", required_argument, NULL, 'm' },
@@ -660,6 +665,17 @@ int main(int argc, char** argv)
                 
             case 's':
                 rngstate.randseed = 1;
+                break;
+            
+            case 'D':
+                if (strlen(optarg) < 1024) {
+                    strcpy((char *)rngstate.detseed, optarg);
+                    
+                } else {
+                    fprintf(stderr, "Error, deterministic seed cannot be longer than 1024 characters\n");
+                    exit(1);
+                }
+                rngstate.got_detseed = 1;
                 break;
                 
             case 'n':
@@ -950,6 +966,11 @@ int main(int argc, char** argv)
 		}
 	}
 
+    if ((rngstate.randseed==1) && (rngstate.got_detseed)) {
+        fprintf(stderr,"Error - Can't have both deterministic and nondeterministic seeding (-s with -D).");
+        exit(1);
+    }
+    
     if (rngstate.randseed==1) {
         if ((rngstate.rdrand_available==0) && (rngstate.devurandom_available==0)){
 		    fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");

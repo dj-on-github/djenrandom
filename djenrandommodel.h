@@ -153,6 +153,8 @@ typedef struct {
 		FILE* devrandom;
 		int reached_eof;
         int windowsrng;
+        int got_detseed;
+        unsigned char detseed[1024];
 	} t_rngstate;
 
 void init_rng(t_rngstate* rngstate);
