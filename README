@@ -28,6 +28,7 @@ There are a variety of models
 
 Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
        [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]
+
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
        [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]
@@ -37,8 +38,10 @@ Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate lengt
        [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]
        [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]
        [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]
+       [-J <json_filename>] [-Y <yaml_filename>]
        [--bpb=<binary bits per byte>]
        [-k <1K_Blocks>] [-w [1..256]]
+       [-D <deterministic seed string>]
 
 Generate random bits with configurable non-uniformities.
   Author: David Johnston, dj@deadhat.com
@@ -67,6 +70,8 @@ Sinusoidally Varying Bias model (-m sinbias) Options
 
 Two Parameter Markov model (-m markov_2_param) Options
 
+  --fast                    Use a fast version on the generator.
+         and one set of:
   --p10=<0.0 to 1.0>        The probability of a 1 following a 0, default 0.5
   --p01=<0.0 to 1.0>        The probability of a 0 following a 1, default 0.5
          or
@@ -111,7 +116,8 @@ General Options
   -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit
   -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample
   -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be chosen at random per sample
-  -s, --seed                     seed the internal RNG with /dev/random
+  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random
+  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string
   -n, --noaesni                  Don't use AESNI instruction.
   -c, --cmax=<generate length>   number of PRNG generates before a reseed
   -v, --verbose                  output the parameters
@@ -122,6 +128,8 @@ File Options
   -j, --jfile=<j filename>         filename to push source model internal state to
   -i, --infile=<input filename>    filename of entropy file for file model
   -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored
+  -J, --json=<JSON filename>       filename to output JSON information of the data to
+  -Y, --yaml=<YAML filename>       filename to output YAML information of the data to
   -k, --blocks=<1K_Blocks>         Size of output in kilobytes
 
 Output Format Options
