@@ -66,7 +66,7 @@ void leftshift128(unsigned char *a, unsigned char *out) {
 /* Computes the 128 bit CMAC of the plaintext           */
 /********************************************************/
 
-int cmac(   unsigned char *key,
+void cmac(   unsigned char *key,
 		unsigned char *k1,
 		unsigned char *k2,
 		unsigned char *plaintext,
@@ -157,8 +157,6 @@ int cmac(   unsigned char *key,
 		aes128k128d(key, temp, t);
 
 	}
-
-	
 
 };
 
