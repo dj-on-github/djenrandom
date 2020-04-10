@@ -34,4 +34,5 @@ clean:
 	rm djenrandom.o
 	rm djenrandommodel.o
 	rm djenrandom
+	rm cmac.o
 

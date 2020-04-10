@@ -28,6 +28,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "cmac.h"
 
 #include "aes128k128d.h"
 #include "djenrandommodel.h"
@@ -1278,8 +1279,8 @@ void init_rng(t_rngstate* rngstate) {
             cmac_key_a[i]=(unsigned char)i;
             cmac_key_b[i]=(unsigned char)(i+16);
         }
-        cmac(cmac_key_a, cmac_k1, cmac_k2, rngstate->detseed, strlen(rngstate->detseed), rngstate->k);
-        cmac(cmac_key_b, cmac_k1, cmac_k2, rngstate->detseed, strlen(rngstate->detseed), rngstate->v);
+        cmac(cmac_key_a, cmac_k1, cmac_k2, rngstate->detseed, strlen((char *)(rngstate->detseed)), rngstate->k);
+        cmac(cmac_key_b, cmac_k1, cmac_k2, rngstate->detseed, strlen((char *)(rngstate->detseed)), rngstate->v);
     }
 
     if (rngstate->randseed==1)
