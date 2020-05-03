@@ -1451,21 +1451,27 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
         fprintf(modelstate->yaml_file,"p10:%f\n",modelstate->p10);
         fprintf(modelstate->yaml_file,"minentropy:%f\n",modelstate->entropy);
         fprintf(modelstate->yaml_file,"bits_per_symbol:1\n");
+        if (rngstate->got_detseed == 1) {
+            fprintf(modelstate->yaml_file,"deterministic_seed:%s\n",rngstate->detseed);
+        }
     }
 
     if (modelstate->using_json > 0)
     {
         fprintf(modelstate->json_file,"{\n");
-        fprintf(modelstate->json_file,"  \"model\"           : \"markov_2_param\"\n");
+        fprintf(modelstate->json_file,"  \"model\"              : \"markov_2_param\"\n");
         if (modelstate->using_ofile==1)
-            fprintf(modelstate->json_file,"  \"filename\"        : \"%s\"\n",modelstate->filename);
-        fprintf(modelstate->json_file,"  \"bias\"            : \"%f\"\n",modelstate->bias);
-        fprintf(modelstate->json_file,"  \"scc\"             : \"%f\"\n",modelstate->correlation);
-        fprintf(modelstate->json_file,"  \"p01\"             : \"%f\"\n",modelstate->p01);
-        fprintf(modelstate->json_file,"  \"p10\"             : \"%f\"\n",modelstate->p10);
-        fprintf(modelstate->json_file,"  \"minentropy\"      : \"%f\"\n",modelstate->entropy);
-        fprintf(modelstate->json_file,"  \"bits_per_symbol\" : \"1\"\n");
+            fprintf(modelstate->json_file,"  \"filename\"           : \"%s\"\n",modelstate->filename);
+        fprintf(modelstate->json_file,"  \"bias\"               : \"%f\"\n",modelstate->bias);
+        fprintf(modelstate->json_file,"  \"scc\"                : \"%f\"\n",modelstate->correlation);
+        fprintf(modelstate->json_file,"  \"p01\"                : \"%f\"\n",modelstate->p01);
+        fprintf(modelstate->json_file,"  \"p10\"                : \"%f\"\n",modelstate->p10);
+        fprintf(modelstate->json_file,"  \"minentropy\"         : \"%f\"\n",modelstate->entropy);
+        fprintf(modelstate->json_file,"  \"bits_per_symbol\"    : \"1\"\n");
         fprintf(modelstate->json_file,"}\n");
+        if (rngstate->got_detseed == 1) {
+            fprintf(modelstate->json_file,"  \"deterministic_seed\" : \"%s\"\n",rngstate->detseed);
+        }
     }
 
 }
@@ -1476,8 +1482,8 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
     double epsilon;
     double p01_dthreshold;
     double p10_dthreshold;
-    int *sampletable0;
-    int *sampletable1;
+    //int *sampletable0;
+    //int *sampletable1;
     double mcv_prob;
     uint64_t mcv;
 
@@ -1536,40 +1542,6 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
    
     // Make lookup table
 
-    if (verbose_mode==1) fprintf(stderr,"Calling make_sample_table()\n");
-
-    make_sample_table(modelstate->p01, modelstate->p10, modelstate->bitwidth, &sampletable0, &sampletable1);
-
-    modelstate->sampletable0 = sampletable0;
-    modelstate->sampletable1 = sampletable1;
-
-    if (verbose_mode > 0)
-    {
-        fprintf(stderr,"model=markov_2_param\n");
-        fprintf(stderr,"  bias            = %f\n",modelstate->bias);
-        fprintf(stderr,"  correlation     = %f\n",modelstate->correlation);
-        fprintf(stderr,"  p01             = %f\n",modelstate->p01);
-        fprintf(stderr,"  p10             = %f\n",modelstate->p10);
-        fprintf(stderr,"  entropy         = %f\n",modelstate->entropy);
-        //fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
-        fprintf(stderr,"  Bits per symbol = %d\n",modelstate->bitwidth);
-    }
-
-    if (modelstate->using_json > 0)
-    {
-        fprintf(modelstate->json_file,"{\n");
-        fprintf(modelstate->json_file,"  \"model\"           : \"markov_2_param\"\n");
-        if (modelstate->using_ofile==1)
-            fprintf(modelstate->json_file,"  \"filename\"        : \"%s\"\n",modelstate->filename);
-        fprintf(modelstate->json_file,"  \"bias\"            : \"%f\"\n",modelstate->bias);
-        fprintf(modelstate->json_file,"  \"scc\"             : \"%f\"\n",modelstate->correlation);
-        fprintf(modelstate->json_file,"  \"p01\"             : \"%f\"\n",modelstate->p01);
-        fprintf(modelstate->json_file,"  \"p10\"             : \"%f\"\n",modelstate->p10);
-        fprintf(modelstate->json_file,"  \"minentropy\"      : \"%f\"\n",modelstate->entropy);
-        fprintf(modelstate->json_file,"  \"bits_per_symbol\" : \"%d\"\n",modelstate->bitwidth);
-        fprintf(modelstate->json_file,"}\n");
-    }
-
     if (modelstate->using_yaml > 0)
     {
         fprintf(modelstate->yaml_file,"model:markov_2_param\n");
@@ -1580,7 +1552,28 @@ void markov2pfastinit(t_modelstate *modelstate, t_rngstate *rngstate)
         fprintf(modelstate->yaml_file,"p01:%f\n",modelstate->p01);
         fprintf(modelstate->yaml_file,"p10:%f\n",modelstate->p10);
         fprintf(modelstate->yaml_file,"minentropy:%f\n",modelstate->entropy);
-        fprintf(modelstate->yaml_file,"bits_per_symbol:%d\n",modelstate->bitwidth);
+        fprintf(modelstate->yaml_file,"bits_per_symbol:1\n");
+        if (rngstate->got_detseed == 1) {
+            fprintf(modelstate->yaml_file,"deterministic_seed:%s\n",rngstate->detseed);
+        }
+    }
+
+    if (modelstate->using_json > 0)
+    {
+        fprintf(modelstate->json_file,"{\n");
+        fprintf(modelstate->json_file,"  \"model\"              : \"markov_2_param\"\n");
+        if (modelstate->using_ofile==1)
+            fprintf(modelstate->json_file,"  \"filename\"           : \"%s\"\n",modelstate->filename);
+        fprintf(modelstate->json_file,"  \"bias\"               : \"%f\"\n",modelstate->bias);
+        fprintf(modelstate->json_file,"  \"scc\"                : \"%f\"\n",modelstate->correlation);
+        fprintf(modelstate->json_file,"  \"p01\"                : \"%f\"\n",modelstate->p01);
+        fprintf(modelstate->json_file,"  \"p10\"                : \"%f\"\n",modelstate->p10);
+        fprintf(modelstate->json_file,"  \"minentropy\"         : \"%f\"\n",modelstate->entropy);
+        fprintf(modelstate->json_file,"  \"bits_per_symbol\"    : \"1\"\n");
+        fprintf(modelstate->json_file,"}\n");
+        if (rngstate->got_detseed == 1) {
+            fprintf(modelstate->json_file,"  \"deterministic_seed\" : \"%s\"\n",rngstate->detseed);
+        }
     }
 
 }
