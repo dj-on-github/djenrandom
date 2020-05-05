@@ -89,7 +89,8 @@ fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
 fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
 fprintf(stderr,"\n");
 
-fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>   Select random source model\n");
+fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>\n");
+fprintf(stderr,"              Select random source model\n");
 
 fprintf(stderr,"\nStep Update Metastable Source model (-m sums) Options\n\n");
 fprintf(stderr,"  -l, --left=<left_stepsize>     stepsize when moving left as a fraction of sigma_m.\n");
@@ -97,14 +98,19 @@ fprintf(stderr,"  -r, --right=<right_stepsize>   stepsize when moving right as a
 fprintf(stderr,"  --stepnoise=<noise on step>    variance of the noise on stepsize. e.g. 0.00001.\n");
 
 fprintf(stderr,"\nBiased model (-m biased) Options\n\n");
-fprintf(stderr,"  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased or markov model\n");
+fprintf(stderr,"  --bias=<bias>                  bias as a number between 0.0 and 1.0.\n");
+fprintf(stderr,"                                 Only for biased or markov model\n");
 fprintf(stderr,"\nCorrelated model (-m correlated) Options\n\n");
-fprintf(stderr,"  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation or markov model\n");
+fprintf(stderr,"  --correlation=<correlation>    Correlation with previous bit as a number between -1.0 and 1.0.\n");
+fprintf(stderr,"                                 Only for correlation or markov model\n");
 
 fprintf(stderr,"\nSinusoidally Varying Bias model (-m sinbias) Options\n\n");
-fprintf(stderr,"  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model\n");
-fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0. Only for sinbias model\n");
-fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model\n");
+fprintf(stderr,"  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.\n");
+fprintf(stderr,"                                      Only for sinbias model\n");
+fprintf(stderr,"  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0.\n");
+fprintf(stderr,"                                       Only for sinbias model\n");
+fprintf(stderr,"  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally\n");
+fprintf(stderr,"                                       varying bias. Only for sinbias model\n");
 
 fprintf(stderr,"\nTwo Parameter Markov model (-m markov_2_param) Options\n\n");
 fprintf(stderr,"  --fast                    Use a fast version on the generator.\n");
@@ -120,9 +126,10 @@ fprintf(stderr,"  --bitwidth=<3 to 64>      The number of bits per symbol\n");
 
 fprintf(stderr,"\nSigmoid Markov model (-m markov_sigmoid) Options\n\n");
 fprintf(stderr,"  --states=<n>              The number of states in the Markov Chain\n");
-fprintf(stderr,"  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default linear\n");
-fprintf(stderr,"  --min_range=<float>               The start of the range of the curve. Usually between -5.0 and -2.0\n");
-fprintf(stderr,"  --max_range=<float>               The end of the range of the curve. Usually between 2.0 and 5.0\n");
+fprintf(stderr,"  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan,\n");
+fprintf(stderr,"                            gudermann, erf or algebraic, default linear\n");
+fprintf(stderr,"  --min_range=<float>       The start of the range of the curve. Usually between -5.0 and -2.0\n");
+fprintf(stderr,"  --max_range=<float>       The end of the range of the curve. Usually between 2.0 and 5.0\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
@@ -145,8 +152,10 @@ fprintf(stderr,"  --xorshift_size=[state size of xorshift]  32 or 128\n");
 
 fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
-fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample\n");
-fprintf(stderr,"  -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be chosen at random per sample\n");
+fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios\n");
+fprintf(stderr,"                                 to be chosen at random per sample\n");
+fprintf(stderr,"  -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be\n");
+fprintf(stderr,"                                 chosen at random per sample\n");
 fprintf(stderr,"  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random\n");
 fprintf(stderr,"  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string\n");
 fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
@@ -157,14 +166,20 @@ fprintf(stderr,"\nFile Options\n\n");
 fprintf(stderr,"  -o <output_filename>             output file\n");
 fprintf(stderr,"  -j, --jfile=<j filename>         filename to push source model internal state to\n");
 fprintf(stderr,"  -i, --infile=<input filename>    filename of entropy file for file model\n");
-fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored\n");
+fprintf(stderr,"  -f, --informat=<hex|binary|01>   Format of input file.:\n");
+fprintf(stderr,"                                       hex=Ascii hex(default),\n");
+fprintf(stderr,"                                       4 bit per hex character.\n");
+fprintf(stderr,"                                       binary=raw binary.\n");
+fprintf(stderr,"                                       01=ascii binary.\n");
+fprintf(stderr,"                                       Non valid characters are ignored\n");
 fprintf(stderr,"  -J, --json=<JSON filename>       filename to output JSON information of the data to\n");
 fprintf(stderr,"  -Y, --yaml=<YAML filename>       filename to output YAML information of the data to\n");
 fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n");
 
 fprintf(stderr,"\nOutput Format Options\n\n");
 fprintf(stderr,"  -b, --binary                output in raw binary format\n");
-fprintf(stderr,"  --bpb                       Number of bits per byte to output in binary output mode. Default 8.\n");
+fprintf(stderr,"  --bpb                       Number of bits per byte to output in binary output mode.\n");
+fprintf(stderr,"                              Default 8 bits.\n");
 fprintf(stderr,"  -w, --width=[1...256]       Byte per line of output\n");
 
 fprintf(stderr,"\nThe most important option of all\n\n");

@@ -1442,18 +1442,20 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
 
     if (modelstate->using_yaml > 0)
     {
-        fprintf(modelstate->yaml_file,"model:markov_2_param\n");
+	fprintf(modelstate->yaml_file,"---\n");
+        fprintf(modelstate->yaml_file,"model: markov_2_param\n");
         if (modelstate->using_ofile==1)
-            fprintf(modelstate->yaml_file,"filename:%s\n",modelstate->filename);
-        fprintf(modelstate->yaml_file,"bias:%f\n",modelstate->bias);
-        fprintf(modelstate->yaml_file,"scc:%f\n",modelstate->correlation);
-        fprintf(modelstate->yaml_file,"p01:%f\n",modelstate->p01);
-        fprintf(modelstate->yaml_file,"p10:%f\n",modelstate->p10);
-        fprintf(modelstate->yaml_file,"minentropy:%f\n",modelstate->entropy);
-        fprintf(modelstate->yaml_file,"bits_per_symbol:1\n");
+            fprintf(modelstate->yaml_file,"filename: %s\n",modelstate->filename);
+        fprintf(modelstate->yaml_file,"bias: %f\n",modelstate->bias);
+        fprintf(modelstate->yaml_file,"scc: %f\n",modelstate->correlation);
+        fprintf(modelstate->yaml_file,"p01: %f\n",modelstate->p01);
+        fprintf(modelstate->yaml_file,"p10: %f\n",modelstate->p10);
+        fprintf(modelstate->yaml_file,"minentropy: %f\n",modelstate->entropy);
+        fprintf(modelstate->yaml_file,"bits_per_symbol: 1\n");
         if (rngstate->got_detseed == 1) {
-            fprintf(modelstate->yaml_file,"deterministic_seed:%s\n",rngstate->detseed);
+            fprintf(modelstate->yaml_file,"deterministic_seed: %s\n",rngstate->detseed);
         }
+	fprintf(modelstate->yaml_file,"...\n");
     }
 
     if (modelstate->using_json > 0)
