@@ -480,6 +480,8 @@ int main(int argc, char** argv)
 	modelstate.using_jfile = 0;
 	modelstate.using_infile = 0;
     modelstate.using_ofile = 0;
+    modelstate.using_yaml = 0;
+    modelstate.using_json = 0;
 	input_format = INFORMAT_HEX;
     rngstate.got_detseed=0;
     rngstate.detseed[0]=0;
