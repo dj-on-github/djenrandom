@@ -569,7 +569,6 @@ int main(int argc, char** argv)
     modelstate.yaml_file = NULL;
     modelstate.json_file = NULL;
 
-
     aesni_supported = aesni_check_support();
 
     int tempa;

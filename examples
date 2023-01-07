@@ -141,10 +141,9 @@ We start the rngd demon first to feed the platform HW entropy to /dev/random.
 
 Testing the output
 
-ent -b <filename>
-entropyTest -t markov -i 1 -o 1 -s 9999 -g 9999 <filename>
+djent -b <filename>
+ea_non_iid -t markov -i 1 -o 1 -v  <filename> 8
 
 DJ
 dj.johnston@intel.com
-
 

@@ -1,14 +1,47 @@
 Note that this used to be called genrandom, until I found there was already a fairly useless standard linux utility called genrandom.
 So djenrandom became the name.
 
-$ ./djenrandom -h
-Usage: djrandom [-bsvh] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
-       [-m <|pure(default)|sums|biased|correlated|normal|file>] [-l <left_stepsize>]
+This program generates random data with known controlled statistical properties. Its primary reason for existing is
+to provide test data for calibrating and validating random number testing algorithms.
+
+It implements a number of models, selected with the -m <model> option.
+
+Pure : Uniform random data.
+SUMS : Step Update Metastable Source. This models a step update metastable entropy source of the type used in Intel CPUs.
+Biased : This model allows the probability of a 1 or 0 to be controlled.
+Correlated : This model allows the serial correlation coefficient to be controlled.
+Normal : This model generates Normal (or Gaussian) distributed data and outputs as floating point values.
+SinBias : This model has a sinusoidally varying bias.
+Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
+                     give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
+                     bias a serial correlation to be modelled in the same data series.
+Markov Sigmoid : This generates bits by walking along a finite Markov chain with transition probabilities set
+                     according to a chosen sigmoid curve. Moving left generates 0, moving right generates 1.
+                     
+                     bias a serial correlation to be modelled in the same data series.
+File : This reads data from a file and re-outputs it.
+
+This program generates random data in 1KiByte blocks. The number of blocks is controlled by the -k <blocks> option.
+Data is output in either hex or binary, using the -b flag.
+The data is the same every time, unless you seed the generator from /dev/random using the -s option.
+There are a variety of models
+
+Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]
+       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]
+
        [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]
        [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]
        [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]
+       [--sinbias_offset=<0.0 to 1.0>] [--sinbias_amplitude=<0.0 to 1.0>] [--sinbias_period=<samples per cycle>]
+       [--p10=<probability of 10 transition] [--p01=<probability of 01 transition>]
+       [--states=<integer of number of states in the markov chain>]
+       [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]
+       [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]
        [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]
+       [-J <json_filename>] [-Y <yaml_filename>]
+       [--bpb=<binary bits per byte>]
        [-k <1K_Blocks>] [-w [1..256]]
+       [-D <deterministic seed string>]
 
 Generate random bits with configurable non-uniformities.
   Author: David Johnston, dj@deadhat.com
@@ -23,11 +56,37 @@ Step Update Metastable Source model (-m sums) Options
 
 Biased model (-m biased) Options
 
-  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased model
+  --bias=<bias>                  bias as a number between 0.0 and 1.0. Only for biased or markov model
 
 Correlated model (-m correlated) Options
 
-  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation model
+  --correlation=<correlation>    correlation with previous bit as a number between -1.0 and 1.0. Only for correlation or markov model
+
+Sinusoidally Varying Bias model (-m sinbias) Options
+
+  --sinbias_amplitude=<0.0 to 1.0>     Amplitude of the variation of the bias between 0.0 and 1.0. Only for sinbias model
+  --sinbias_offset=<0.0 to 1.0>        Midpoint Offset of the varying bias between 0.0 and 1.0. Only for sinbias model
+  --sinbias_period=<samples per cycle> Number of samples for a full cycle of the sinusoidally varying bias. Only for sinbias model
+
+Two Parameter Markov model (-m markov_2_param) Options
+
+  --fast                    Use a fast version on the generator.
+         and one set of:
+  --p10=<0.0 to 1.0>        The probability of a 1 following a 0, default 0.5
+  --p01=<0.0 to 1.0>        The probability of a 0 following a 1, default 0.5
+         or
+  --bias=<0.0 to 1.0>               The ones probability, default 0.5
+  --correlation=<-1.0 to 1.0>       The serial correlation coefficient, default 0.0
+         or
+  --entropy=<0.0 to 1.0>    The per bit entropy, default 1.0
+  --bitwidth=<3 to 64>      The number of bits per symbol
+
+Sigmoid Markov model (-m markov_sigmoid) Options
+
+  --states=<n>              The number of states in the Markov Chain
+  --sigmoid=<curve>         Curve name, one of: flat, linear, sums, logistic, tah, atan, gudermann, erf or algebraic, default linear
+  --min_range=<float>               The start of the range of the curve. Usually between -5.0 and -2.0
+  --max_range=<float>               The end of the range of the curve. Usually between 2.0 and 5.0
 
 Normal model (-m normal) Options
 
@@ -36,11 +95,11 @@ Normal model (-m normal) Options
 
 Linear Congruential Generator model (-m lcg) Options
 
-  --lgc_a=<LCG multipler term>  Positive integer less than lcg_m
-  --lgc_c=<LCG additive term>   Positive integer less than lcg_m
-  --lgc_m=<LCG modulo term>     Positive integer defining size of the group
-  --lgc_truncate=<lower bits to truncate>     Positive integer
-  --lgc_outbits=<Number of bits per output>     Positive integer
+  --lcg_a=<LCG multipler term>  Positive integer less than lcg_m
+  --lcg_c=<LCG additive term>   Positive integer less than lcg_m
+  --lcg_m=<LCG modulo term>     Positive integer defining size of the group
+  --lcg_truncate=<lower bits to truncate>     Positive integer
+  --lcg_outbits=<Number of bits per output>     Positive integer
 
 Permuted Congruential Generator model (-m pcg) Options
 
@@ -57,7 +116,9 @@ General Options
   -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit
   -y, --xmin=<bits>              Provides the start of a range of XOR ratios to be chosen at random per sample
   -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be chosen at random per sample
-  -s, --seed                     seed the internal RNG with /dev/random
+  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random
+  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string
+  -n, --noaesni                  Don't use AESNI instruction.
   -c, --cmax=<generate length>   number of PRNG generates before a reseed
   -v, --verbose                  output the parameters
 
@@ -67,14 +128,81 @@ File Options
   -j, --jfile=<j filename>         filename to push source model internal state to
   -i, --infile=<input filename>    filename of entropy file for file model
   -f, --informat=<hex|binary|01>   Format of input file. hex=Ascii hex(default), 4 bit per hex character. binary=raw binary. 01=ascii binary. Non valid characters are ignored
+  -J, --json=<JSON filename>       filename to output JSON information of the data to
+  -Y, --yaml=<YAML filename>       filename to output YAML information of the data to
   -k, --blocks=<1K_Blocks>         Size of output in kilobytes
 
 Output Format Options
 
   -b, --binary                output in raw binary format
+  --bpb                       Number of bits per byte to output in binary output mode. Default 8.
   -w, --width=[1...256]       Byte per line of output
 
 The most important option of all
 
   -h, --help                     print this help and exit
 
+More Details on the models
+-------------
+Pure : The data produced from the Pure model is indistiguishable from uniform random bits where each bit is independent
+       and has a 50% probability of being 1. It is generated from a variant of a CTR_DRBG with a couple of extra AES
+       stages thrown in for fun.
+       
+SUMS : Step Update Metastable Source. This models a dual differential feeback cross coupled latch, as used in the
+       Intel DRNG Entropy Source that feeds the RdRand and RdSeed instructions. It has a control variable t, which
+       moved left or right based on evaluating a probability of moving away from the center. The curve is defined
+       P = 0.5 * exp(-0.5 * t*t). This is computed with floating point arithmetic.
+       Options are in the model to vary the left and right step sizes and to add noise to the step sizes.
+       
+Biased : This generates bits according to a given probabilty (bias) that the bit is 1.
+
+Correlated : This model generates data with 50% bias and the given serial correlation coefficient.
+             The probability of a bit being the same as the previous bit is computed from the SCC.
+             P(a=b) = (1+scc)/2. This relationship only holds for unbiased bits.
+             
+Normal : This model generates Normal (or Gaussian) distributed data and outputs as floating point values.
+         The algorithm to compute normal variates uses the Marsargalia Polar Method.
+         
+SinBias : This model has a sinusoidally varying bias. This is one of the models used by NIST in evaluating
+          the SP800-90B Non-IID entropy lower bound tests. The frequency and amplitude of the sinuoid can
+          can be controlled.
+          
+Markov 2 Parameter : This implements a two state model. States 1 and 0, which output 1 and 0 respectively. Two parameters
+                     give the probability of transitioning from 1 to 0 and from 0 to 1. This model allows both
+                     bias a serial correlation to be modelled in the same data series.
+                     A three way relationship exists between the P01,P10 markov parameters, the SCC and mean of the
+                     generated data and the entropy of the generated data. Allowing data with know SCC, mean and 
+                     entropy to be generated. This is useful for testing entropy estimation algorithms.
+                     One of the transition parameters, the SCC and mean or the entropy can be given.
+                     If the entropy is given, then there is an infinite set of P01,P10 pairs that generate that
+                     entropy level. They exist on a closed curve on the P01,P10 plane. The program will pick
+                     one at random.
+                     
+Markov Sigmoid : This generates bits by walking along a finite Markov chain with transition probabilities set
+                 according to a chosen sigmoid curve. Moving left generates 0, moving right generates 1.
+                 This is similar to the SUMS model, except it is a finite state model, not a floating point
+                 model. But choosing a range and curve appropriately, it is easy to model the feedback
+                 curve in a feedback controlled entropy source.
+                 A paper by Rachael Parker (DOI: 10.1109/IVSW.2017.8031540) includes proof that the occupancy
+                 of the Markov states follows a normal distribution for any sigmoid. From this the average min
+                 entropy of a group of bits from the source can be computed from the weighted average of the
+                 min entropyies of bits from individual states.
+                 The curves are
+                 Flat           : P(move_left | x) = 0.5
+                 Linear         : P(move_left | x) = x
+                 algebraic      : P(move_left | x) = x/sqrt(1.0+(x*x))
+                 atan           : P(move_left | x) = arctan(x)
+                 tanh           : P(move_left | x) = hyperbolic_tangent(x)
+                 erf            : P(move_left | x) = erf(x)
+                 gudermann      : P(move_left | x) = 2.0*arctan(hyperbolic_tangent(x/2))
+                 logistic       : P(move_left | x) = 1.0/(1.0+exp(-x))
+                 
+                 The range gives the bounds on the chosen curve. The algorithm scales the vertical position of the curve
+                 to vary between -1 and +1, so that the curve intersects the 0.5 region. 
+                 
+                 
+                 
+File  : This reads a given file and outputs the data. This is useful for format conversion. It provides
+        flexible input and output formats.
+
+  

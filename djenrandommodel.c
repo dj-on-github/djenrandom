@@ -675,59 +675,39 @@ int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
 
 int sinbiassource(t_modelstate *modelstate, t_rngstate* rngstate)
 {
-    int result;
-    double dthreshold;
-    int threshold;
+    int symbol;
+    int rsymbol;
+    //int phase;
     unsigned long int theint;
-    double bias;
-    double period;
-    double amplitude;
-    double offset;
-    int t;
-    double maxp;
-    double entropy;
-    double delta;
+    //double maxp;
+    //double entropy;
+    //double bias;
+    //double delta;
 
     /* get a uniform Random number.              */
 
-    theint = getrand16(rngstate);
-
-    period = modelstate->sinbias_period;
-    amplitude = modelstate->sinbias_amplitude;
-    offset = modelstate->sinbias_offset;
-    t = modelstate->time;
-    
-    bias = offset + (amplitude*(sin(2.0*M_PI*t/period)));
-    
-    if (bias < 0.0) bias =0.0;
-    if (bias > 1.0) bias = 1.0;
-    
-    dthreshold = 65536.0*bias;
-    threshold = (int)dthreshold;
+    theint = ((getrand16(rngstate) << 16) | (getrand16(rngstate))) & 0x000fffff;
 
 
-    if (theint < threshold) result = 1;
-    else result = 0;
+            //fprintf(stderr,"bias = %f\n",modelstate.bias);
+            //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
+            //fprintf(stderr,"p01 = %f\n",p01);
+            //fprintf(stderr,"p10 = %f\n",p10);
 
-    modelstate->sinbias_bias = bias;
+    //phase = modelstate->markov2p_phase;
+    //symbol = modelstate->markov2p_symbol;
 
-    if (bias > 0.5)
-        maxp = bias;
-    else
-        maxp = 1.0 - bias;
-
-    entropy = -log(maxp)/log(2);
-
-    modelstate->n = (modelstate->n)+1;
-    delta = entropy - (modelstate->averageentropy);
-    modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
-
-    if (modelstate->using_jfile == 1) {
-        fprintf(modelstate->jfile,"%0.6f\n",entropy);
+    if (modelstate->lastbit==1)
+    {
+        symbol = modelstate->sampletable1[theint];
+    } else {
+        symbol = modelstate->sampletable0[theint];
     }
-
-    modelstate->time = t+1;
-    return(result);
+   
+    //modelstate->bias = bias;
+    modelstate->lastbit=(symbol >> 7) & 1;
+    rsymbol=bit_reverse_table[symbol];
+    return(rsymbol);
 }
 
 int lcgsource(t_modelstate* modelstate, t_rngstate* rngstate)
