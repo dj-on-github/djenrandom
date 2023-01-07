@@ -28,40 +28,73 @@
 #include <math.h>
 #include <stdint.h>
 
+#define CURVE_FLAT      0
+#define CURVE_LINEAR    1
+#define CURVE_LOGISTIC  2
+#define CURVE_TANH      3
+#define CURVE_ATAN      4
+#define CURVE_GUDERMANN 5
+#define CURVE_ERF       6
+#define CURVE_AGEBRAIC  7
+
 typedef struct {
-		double t;
-		int lastbit;
-		double left_stepsize;
-		double right_stepsize;
-		double sums_bias;
-		double correlation;
-		double bias;
-		double mean;
-		double variance;
-		
-		unsigned long long lcg_a; /* LCG Model */
-		unsigned long long lcg_c;
-		unsigned long long lcg_m;
-		unsigned long long lcg_mask;
-		unsigned long long lcg_x;
-		unsigned int lcg_truncate;
-		unsigned int lcg_outbits;	
-		unsigned int lcg_index;
-		unsigned long long lcg_output;
-		
-		/* PCG States */
-		unsigned int pcg_state_size;
-		unsigned int pcg_index;
-		int pcg_alg;
-		int pcg_of;
-		uint64_t pcg_output;
-		
-		uint16_t pcg16_state;
-		uint32_t pcg32_state;
-		uint64_t pcg64_state;
-		uint64_t pcg128_state[2];		
-		
-		uint16_t  pcg16_multiplier;
+        double t;
+        int lastbit;
+        double left_stepsize;
+        double right_stepsize;
+        double sigmoid_bias;
+        double correlation;
+        double entropy;
+        double averageentropy;
+        int    n;
+        double bias;
+        double mean;
+        double variance;
+        int    states;
+        int    sigmoid_state;
+        double min_range;
+        double max_range;
+        double *chain;
+        int    curve;
+        char   curvestr[25];
+        double p01;
+        double p10;
+        int    markov2p_phase;
+        int    markov2p_symbol;
+        int    *sampletable0;
+        int    *sampletable1;
+        int    p01_threshold;
+        int    p10_threshold;
+        int    bitwidth;
+        int    gotentropy;
+        int    gotp01;
+        int    gotp10;
+        int    gotbias;
+        int    gotcorrelation;
+        int    fast_m2p;        
+        unsigned long long lcg_a; /* LCG Model */
+        unsigned long long lcg_c;
+        unsigned long long lcg_m;
+        unsigned long long lcg_mask;
+        unsigned long long lcg_x;
+        unsigned int lcg_truncate;
+        unsigned int lcg_outbits;
+        unsigned int lcg_index;
+        unsigned long long lcg_output;
+        
+        /* PCG States */
+        unsigned int pcg_state_size;
+        unsigned int pcg_index;
+        int pcg_alg;
+        int pcg_of;
+        uint64_t pcg_output;
+        
+        uint16_t pcg16_state;
+        uint32_t pcg32_state;
+        uint64_t pcg64_state;
+        uint64_t pcg128_state[2];
+        
+        uint16_t  pcg16_multiplier;
         uint32_t  pcg32_multiplier;
         uint64_t  pcg64_multiplier;
         uint64_t  pcg128_multiplier[2];
@@ -71,45 +104,65 @@ typedef struct {
         uint64_t  pcg64_adder;
         uint64_t  pcg128_adder[2];
         
+        /* sin bias states */
+        uint64_t sinbias_period;
+        double sinbias_amplitude;
+        double sinbias_offset;
+        int    sinbias_bias;
+        uint64_t time;
+    
         /* XORSHIFT States */
         
-		uint32_t xorshift_size;
-		uint32_t xorshift_state_a;
-		uint32_t xorshift_state_b;
-		uint32_t xorshift_state_c;
-		uint32_t xorshift_state_d;
-		
-		int using_stepnoise;
-		double stepnoise;
-		int using_jfile;
-		FILE *jfile;
-		int using_infile;
-		FILE *infile;
-	} t_modelstate;
+        uint32_t xorshift_size;
+        uint32_t xorshift_state_a;
+        uint32_t xorshift_state_b;
+        uint32_t xorshift_state_c;
+        uint32_t xorshift_state_d;
+        
+        int using_stepnoise;
+        double stepnoise;
+        int using_jfile;
+        FILE *jfile;
+        int using_infile;
+        FILE *infile;
+        int using_json;
+        int using_yaml;
+        FILE *json_file;
+        FILE *yaml_file;
+        char filename[1000];
+        int using_ofile;
+
+    } t_modelstate;
 
 typedef struct {
-		int c_max;
-		int c;
-		int input_format;
-		unsigned char pool0[16];
-		unsigned char pool1[16];
-		unsigned char filechar;
-		unsigned int  fileindex;
-		unsigned char k[16];
-		unsigned char kprime[16];
-		unsigned char v[16];
-		int temp;
-		unsigned char rngbits[16];
-		int randseed;
-		int devurandom_available;
-		int rdrand_available;
-		FILE* devrandom;
-		int reached_eof;
+        int c_max;
+        int c;
+        int input_format;
+        unsigned char pool0[16];
+        unsigned char pool1[16];
+        unsigned char filechar;
+        unsigned int  fileindex;
+        unsigned char k[16];
+        unsigned char kprime[16];
+        unsigned char v[16];
+        int temp;
+        unsigned char rngbits[16];
+        int randseed;
+        int devurandom_available;
+        int rdrand_available;
+        FILE* devrandom;
+        int reached_eof;
         int windowsrng;
-	} t_rngstate;
+        int got_detseed;
+        unsigned char detseed[1024];
+    } t_rngstate;
 
+void init_rng(t_rngstate* rngstate);
 int getrand16(t_rngstate* rngstate);
+uint64_t getrand64(t_rngstate* rngstate);
 double getNormal(t_modelstate *modelstate, t_rngstate* rngstate);
+double get_rand_double(t_rngstate* rngstate);
+uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate);
 
 /* entropysource(j,stepsize,v,seed); */
 /* compute next bit */
@@ -122,6 +175,10 @@ int smoothsource(     t_modelstate* modelstate, t_rngstate* rngstate);
 int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markov2psource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markov2pfastsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int markovsigmoidsource( t_modelstate *modelstate, t_rngstate* rngstate);
+int sinbiassource( t_modelstate *modelstate, t_rngstate* rngstate);
 int lcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int pcgsource( t_modelstate *modelstate, t_rngstate* rngstate);
 int xorshiftsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -140,9 +197,13 @@ void smoothinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
-void lcginit( t_modelstate* modelstate, t_rngstate* rngstate);
-void pcginit( t_modelstate* modelstate, t_rngstate* rngstate);
-void xorshiftinit( t_modelstate* modelstate, t_rngstate* rngstate);
+void markov2pinit(   t_modelstate* modelstate, t_rngstate* rngstate);
+void markov2pfastinit(t_modelstate* modelstate, t_rngstate* rngstate);
+void markovsigmoidinit(t_modelstate* modelstate, t_rngstate* rngstate);
+void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
+void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
+void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
+void xorshiftinit(   t_modelstate* modelstate, t_rngstate* rngstate);
 void normalinit(     t_modelstate *modelstate, t_rngstate* rngstate);
 void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
 
@@ -151,5 +212,6 @@ void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
 
 #define XSH_RS 1
 #define XSH_RR 2
+
 
 
