@@ -416,6 +416,8 @@ int main(int argc, char** argv)
     int tempindex;
     int xor4bit;
     int xor11bit;
+    int downsample;
+    int inputbits;
     int shiftreg;
     int newbit;
     int xoriter;
@@ -475,6 +477,7 @@ int main(int argc, char** argv)
     /* Defaults */
     xor4bit = 0;    // 0=Do not use the 4 bit xor decorrelator, 1 = do.
     xor11bit = 0;    // 0=Do not use the 11 bit xor decorrelator, 1 = do.
+    downsample = 0;    // 0=Do not use the downsampler of the decorellator, 1 = do.
     shiftreg = 0;  // Preset the decorrelator shiftregister to 0.
     binary_mode = 0; /* binary when 1, hex when 0 */
     bits_per_byte = 8; /* default 8 bits per byte */
@@ -606,6 +609,7 @@ int main(int argc, char** argv)
     { "bpb", required_argument, NULL, 0 },
     { "xor4bit", no_argument, NULL, 0 },
     { "xor11bit", no_argument, NULL, 0 },
+    { "downsample", no_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
@@ -826,6 +830,10 @@ int main(int argc, char** argv)
 
                 if( strcmp( "xor11bit", longOpts[longIndex].name ) == 0 ) {
                     xor11bit = 1;
+                }
+
+                if( strcmp( "downsample", longOpts[longIndex].name ) == 0 ) {
+                    downsample = 1;
                 }
 
                 if( strcmp( "xmin", longOpts[longIndex].name ) == 0 ) {
@@ -1049,8 +1057,8 @@ int main(int argc, char** argv)
 
     }
 
-    if ((xor4bit==1) && (xor11bit==1)) {
-            fprintf(stderr,"Error: Cannot use both --xor4bit and --xor11bit at the same time.\n");
+    if ((xor4bit+xor11bit+downsample) > 1) {
+            fprintf(stderr,"Error: Can only use one of --xor4bit, --xor11bit or --downsample at the same time.\n");
             abort=1;
     }
 
@@ -1343,6 +1351,9 @@ int main(int argc, char** argv)
         
         if (xor11bit==1)
             fprintf(stderr,"11 bit decorrelator/decimator being used");
+        
+        if (downsample==1)
+            fprintf(stderr,"16-4 downsampler being used");
 
         if (xormode == 1)
             fprintf(stderr,"XOR mode on, fixed ratio=%d:1\n",xorbits);
@@ -1527,30 +1538,67 @@ int main(int argc, char** argv)
                         // The first 4 bits of the byte
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
-                            shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7);
+                            modelstate.lastbit = newbit;
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7);
+                            shiftreg = ((((shiftreg & 0x8)>>3)^newbit) & 0x1) | ((shiftreg<<1) & 0xe);
                         }
                         thebyte = (shiftreg & 0xf);
                         
                         // The second 4 bits of the byte
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
-                            shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7); // new bit and bit 0 xored into bit 3. bits 3-1 shifted to 2-0.
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x8)>>3)^newbit) & 0x1) | ((shiftreg<<1) & 0xe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7); // new bit and bit 0 xored into bit 3. bits 3-1 shifted to 2-0.
                         }
-                        thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
                     } else if (xor11bit==1) {
                         // The first 4 bits of the byte
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
-                            shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x400)>>10)^newbit) & 0x1) | ((shiftreg<<1) & 0x7fe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
                         }
                         thebyte = (shiftreg & 0xf);
                         
                         // The second 4 bits of the byte
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
-                            shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x400)>>10)^newbit) & 0x1) | ((shiftreg<<1) & 0x7fe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
                         }
-                        thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
+                    } else if (downsample==1) {
+                        // The first 4 bits of the byte
+                        inputbits = 0;
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            //inputbits = (inputbits << 1) | (newbit & 0x1);
+                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                            //shiftreg = ((newbit<<3) | ((shiftreg>>1) & 0x7)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                        }
+                        thebyte = (shiftreg & 0xf);
+                        //fprintf(stderr, "\ndownsample got %04x in.",inputbits);
+                        //fprintf(stderr, " Returned %x.\n",thebyte);
+                        
+                        // The second 4 bits of the byte
+                        inputbits = 0;
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            //inputbits = (inputbits << 1) | (newbit & 0x1);
+                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                            //shiftreg = ((newbit<<3) | ((shiftreg>>1) & 0x7)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                        }
+                        //fprintf(stderr, "\ndownsample got %04x in",inputbits);
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
+                        //fprintf(stderr, " Returned %02x.\n",thebyte);
                     } else if ((model==MODEL_MARKOV2P) && (modelstate.fast_m2p==1)) {
                         thebyte = markov2pfastsource(&modelstate, &rngstate);
                         //if (rngstate.reached_eof == 1) {
@@ -1623,16 +1671,19 @@ int main(int argc, char** argv)
 
                             if ((thebit & 0x01)==1)
                             {
+                                //thebyte = ((thebyte >> 1) & 0x7f) | 0x80;
                                 thebyte = (thebyte << 1) | 0x01;
                             }
                             else
                             {
+                                //thebyte = ((thebyte >> 1) & 0x7f);
                                 thebyte = (thebyte << 1) & 0xfe;
                             }
                         } // end for i = 1..7
                     } // end else not fast
 
                     thesample[samplenum]=thebyte;
+                    //fprintf(stderr, "non downsample returned %02X\n",thebyte);
                 }
 
                 /* Output the 256 byte block */
