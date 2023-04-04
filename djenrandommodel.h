@@ -38,63 +38,63 @@
 #define CURVE_AGEBRAIC  7
 
 typedef struct {
-		double t;
-		int lastbit;
-		double left_stepsize;
-		double right_stepsize;
+        double t;
+        int lastbit;
+        double left_stepsize;
+        double right_stepsize;
         double sigmoid_bias;
-		double correlation;
-		double entropy;
-		double averageentropy;
+        double correlation;
+        double entropy;
+        double averageentropy;
         int    n;
-		double bias;
-		double mean;
-		double variance;
-		int    states;
+        double bias;
+        double mean;
+        double variance;
+        int    states;
         int    sigmoid_state;
         double min_range;
         double max_range;
         double *chain;
         int    curve;
         char   curvestr[25];
-		double p01;
-		double p10;
+        double p01;
+        double p10;
         int    markov2p_phase;
         int    markov2p_symbol;
         int    *sampletable0;
         int    *sampletable1;
         int    p01_threshold;
         int    p10_threshold;
-		int    bitwidth;
+        int    bitwidth;
         int    gotentropy;
         int    gotp01;
         int    gotp10;
         int    gotbias;
         int    gotcorrelation;
-        int    fast_m2p;		
-		unsigned long long lcg_a; /* LCG Model */
-		unsigned long long lcg_c;
-		unsigned long long lcg_m;
-		unsigned long long lcg_mask;
-		unsigned long long lcg_x;
-		unsigned int lcg_truncate;
-		unsigned int lcg_outbits;
-		unsigned int lcg_index;
-		unsigned long long lcg_output;
-		
-		/* PCG States */
-		unsigned int pcg_state_size;
-		unsigned int pcg_index;
-		int pcg_alg;
-		int pcg_of;
-		uint64_t pcg_output;
-		
-		uint16_t pcg16_state;
-		uint32_t pcg32_state;
-		uint64_t pcg64_state;
-		uint64_t pcg128_state[2];
-		
-		uint16_t  pcg16_multiplier;
+        int    fast_m2p;        
+        unsigned long long lcg_a; /* LCG Model */
+        unsigned long long lcg_c;
+        unsigned long long lcg_m;
+        unsigned long long lcg_mask;
+        unsigned long long lcg_x;
+        unsigned int lcg_truncate;
+        unsigned int lcg_outbits;
+        unsigned int lcg_index;
+        unsigned long long lcg_output;
+        
+        /* PCG States */
+        unsigned int pcg_state_size;
+        unsigned int pcg_index;
+        int pcg_alg;
+        int pcg_of;
+        uint64_t pcg_output;
+        
+        uint16_t pcg16_state;
+        uint32_t pcg32_state;
+        uint64_t pcg64_state;
+        uint64_t pcg128_state[2];
+        
+        uint16_t  pcg16_multiplier;
         uint32_t  pcg32_multiplier;
         uint64_t  pcg64_multiplier;
         uint64_t  pcg128_multiplier[2];
@@ -113,18 +113,18 @@ typedef struct {
     
         /* XORSHIFT States */
         
-		uint32_t xorshift_size;
-		uint32_t xorshift_state_a;
-		uint32_t xorshift_state_b;
-		uint32_t xorshift_state_c;
-		uint32_t xorshift_state_d;
-		
-		int using_stepnoise;
-		double stepnoise;
-		int using_jfile;
-		FILE *jfile;
-		int using_infile;
-		FILE *infile;
+        uint32_t xorshift_size;
+        uint32_t xorshift_state_a;
+        uint32_t xorshift_state_b;
+        uint32_t xorshift_state_c;
+        uint32_t xorshift_state_d;
+        
+        int using_stepnoise;
+        double stepnoise;
+        int using_jfile;
+        FILE *jfile;
+        int using_infile;
+        FILE *infile;
         int using_json;
         int using_yaml;
         FILE *json_file;
@@ -132,30 +132,30 @@ typedef struct {
         char filename[1000];
         int using_ofile;
 
-	} t_modelstate;
+    } t_modelstate;
 
 typedef struct {
-		int c_max;
-		int c;
-		int input_format;
-		unsigned char pool0[16];
-		unsigned char pool1[16];
-		unsigned char filechar;
-		unsigned int  fileindex;
-		unsigned char k[16];
-		unsigned char kprime[16];
-		unsigned char v[16];
-		int temp;
-		unsigned char rngbits[16];
-		int randseed;
-		int devurandom_available;
-		int rdrand_available;
-		FILE* devrandom;
-		int reached_eof;
+        int c_max;
+        int c;
+        int input_format;
+        unsigned char pool0[16];
+        unsigned char pool1[16];
+        unsigned char filechar;
+        unsigned int  fileindex;
+        unsigned char k[16];
+        unsigned char kprime[16];
+        unsigned char v[16];
+        int temp;
+        unsigned char rngbits[16];
+        int randseed;
+        int devurandom_available;
+        int rdrand_available;
+        FILE* devrandom;
+        int reached_eof;
         int windowsrng;
         int got_detseed;
         unsigned char detseed[1024];
-	} t_rngstate;
+    } t_rngstate;
 
 void init_rng(t_rngstate* rngstate);
 int getrand16(t_rngstate* rngstate);
@@ -212,5 +212,6 @@ void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
 
 #define XSH_RS 1
 #define XSH_RR 2
+
 
 

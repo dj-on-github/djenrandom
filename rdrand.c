@@ -121,12 +121,12 @@ int check_is_intel() {
     CPUIDinfo info;
    
     get_cpuid(&info,0,0);
-	if(memcmp((char *)(&info.EBX), "Genu", 4) == 0 &&
-		memcmp((char *)(&info.EDX), "ineI", 4) == 0 &&
-		memcmp((char *)(&info.ECX), "ntel", 4) == 0) {
+    if(memcmp((char *)(&info.EBX), "Genu", 4) == 0 &&
+        memcmp((char *)(&info.EDX), "ineI", 4) == 0 &&
+        memcmp((char *)(&info.ECX), "ntel", 4) == 0) {
             if (verbose_mode) fprintf(stderr,"Is Intel CPU\n");
-			return 1;
-	}
+            return 1;
+    }
     if (verbose_mode) fprintf(stderr,"Is not Intel CPU\n");
     return 0;
 }
@@ -137,11 +137,11 @@ int check_is_amd() {
     get_cpuid(&info,0,0);
 
     if( memcmp((char *)(&info.EBX), "Auth", 4) == 0 &&
-		memcmp((char *)(&info.EDX), "enti", 4) == 0 &&
-		memcmp((char *)(&info.ECX), "cAMD", 4) == 0) {
+        memcmp((char *)(&info.EDX), "enti", 4) == 0 &&
+        memcmp((char *)(&info.ECX), "cAMD", 4) == 0) {
             if (verbose_mode) fprintf(stderr,"Is AMD CPU\n");
-			return 1;
-	}
+            return 1;
+    }
     if (verbose_mode) fprintf(stderr,"Is not AMD CPU\n");
     return 0;
 }
@@ -182,26 +182,26 @@ int check_aesni()
 
 int aesni_check_support()
 {
-	if ((check_is_intel()==1) || (check_is_amd()==1)){
+    if ((check_is_intel()==1) || (check_is_amd()==1)){
         if (check_aesni()==1) return 1;
-	}
-	return 0;
+    }
+    return 0;
 }
 
 int rdrand_check_support()
 {
-	if ((check_is_intel()==1) || (check_is_amd()==1)){
+    if ((check_is_intel()==1) || (check_is_amd()==1)){
         if (check_rdrand()==1) return 1;
-	}
-	return 0;
+    }
+    return 0;
 }
 
 int rdseed_check_support()
 {
-	if ((check_is_intel()==1) || (check_is_amd()==1)){
+    if ((check_is_intel()==1) || (check_is_amd()==1)){
         if (check_rdseed()==1) return 1;
-	}
-	return 0;
+    }
+    return 0;
 }
 
 /***************************************************/
@@ -251,7 +251,7 @@ int rdrand32_step(unsigned int *therand)
 int foo;
 int cf_error_status;
 asm("\n\
-	rdrand %%eax;\n\
+    rdrand %%eax;\n\
         mov $1,%%edx;\n\
         cmovae %%eax,%%edx;\n\
         mov %%edx,%1;\n\
@@ -266,7 +266,7 @@ int rdseed32_step(unsigned int *therand)
 int foo;
 int cf_error_status;
 asm("\n\
-	rdseed %%eax;\n\
+    rdseed %%eax;\n\
         mov $1,%%edx;\n\
         cmovae %%eax,%%edx;\n\
         mov %%edx,%1;\n\
@@ -319,46 +319,46 @@ return cf_error_status;
 
 int rdrand_get_uint(unsigned int *dest)
 {
-	unsigned int therand;
-	if (rdrand32_step(&therand))
-	{
-		*dest = therand;
-		return 1;
-	}
-	else return 0;
+    unsigned int therand;
+    if (rdrand32_step(&therand))
+    {
+        *dest = therand;
+        return 1;
+    }
+    else return 0;
 }
 
 int rdseed_get_uint(unsigned int *dest)
 {
-	unsigned int therand;
-	if (rdseed32_step(&therand))
-	{
-		*dest = therand;
-		return 1;
-	}
-	else return 0;
+    unsigned int therand;
+    if (rdseed32_step(&therand))
+    {
+        *dest = therand;
+        return 1;
+    }
+    else return 0;
 }
 
 int rdrand_get_ulint(unsigned long long int *dest)
 {
-	unsigned long long int therand;
-	if (rdrand64_step(&therand))
-	{
-		*dest = (unsigned long long int)therand;
-		return 1;
-	}
-	else return 0;
+    unsigned long long int therand;
+    if (rdrand64_step(&therand))
+    {
+        *dest = (unsigned long long int)therand;
+        return 1;
+    }
+    else return 0;
 }
 
 int rdseed_get_ulint(unsigned long long int *dest)
 {
-	unsigned long long int therand;
-	if (rdseed64_step(&therand))
-	{
-		*dest = (unsigned long long int)therand;
-		return 1;
-	}
-	else return 0;
+    unsigned long long int therand;
+    if (rdseed64_step(&therand))
+    {
+        *dest = (unsigned long long int)therand;
+        return 1;
+    }
+    else return 0;
 }
 
 /**************************************************/
@@ -378,17 +378,17 @@ unsigned int therand;
 
   do
   {
-	success=rdrand32_step(&therand);
+    success=rdrand32_step(&therand);
   } while((success == 0) || (count++ < retry_limit));
   
   if (success == 1)
   {
-	*dest = therand;
-	return 1;
+    *dest = therand;
+    return 1;
   }
   else
   {
-	return 0;
+    return 0;
   }
 }
 
@@ -402,17 +402,17 @@ unsigned int therand;
 
   do
   {
-	success=rdseed32_step(&therand);
+    success=rdseed32_step(&therand);
   } while((success == 0) || (count++ < retry_limit));
   
   if (success == 1)
   {
-	*dest = therand;
-	return 1;
+    *dest = therand;
+    return 1;
   }
   else
   {
-	return 0;
+    return 0;
   }
 }
 
@@ -429,17 +429,17 @@ int success=0;
 int count=0;
 int i=0;
 
-	for (i=0; i<n; i++)
-	{
-		count = 0;
-		do
-		{
-        		success=rdrand64_step(dest);
-		} while((success == 0) && (count++ < retry_limit));
-		if (success == 0) return 0;
-		dest=&(dest[1]);
-	}
-	return 1; 
+    for (i=0; i<n; i++)
+    {
+        count = 0;
+        do
+        {
+                success=rdrand64_step(dest);
+        } while((success == 0) && (count++ < retry_limit));
+        if (success == 0) return 0;
+        dest=&(dest[1]);
+    }
+    return 1; 
 }
 
 int rdseed_get_n_qints_retry(unsigned int n, unsigned int retry_limit, unsigned long long int *dest)
@@ -448,17 +448,17 @@ int success;
 int count;
 unsigned int i;
 
-	for (i=0; i<n; i++)
-	{
-		count = 0;
-		do
-		{
-        		success=rdseed64_step(dest);
-		} while((success == 0) && (count++ < retry_limit));
-		if (success == 0) return 0;
-		dest=&(dest[1]);
-	}
-	return 1; 
+    for (i=0; i<n; i++)
+    {
+        count = 0;
+        do
+        {
+                success=rdseed64_step(dest);
+        } while((success == 0) && (count++ < retry_limit));
+        if (success == 0) return 0;
+        dest=&(dest[1]);
+    }
+    return 1; 
 }
 
 
@@ -472,120 +472,120 @@ unsigned int i;
 
 int rdrand_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned int *dest)
 {
-	int qwords;
-	int dwords;
-	int i;
+    int qwords;
+    int dwords;
+    int i;
 
-	unsigned long long int qrand;
-	unsigned int drand;
+    unsigned long long int qrand;
+    unsigned int drand;
 
-	int success;
-	int count;
+    int success;
+    int count;
 
-	int total_uints;
+    int total_uints;
 
-	unsigned long int *qptr;
+    unsigned long int *qptr;
 
-	total_uints = 0;
-	qptr = (unsigned long int*)dest;
+    total_uints = 0;
+    qptr = (unsigned long int*)dest;
 
-	qwords = n/2;
-	dwords = n -(qwords*2);
+    qwords = n/2;
+    dwords = n -(qwords*2);
 
-	for (i=0; i<qwords; i++)
-	{
-		count = 0;
-		do
-		{
-        		success=rdrand64_step(&qrand);
-		} while((success == 0) || (count++ < retry_limit));
+    for (i=0; i<qwords; i++)
+    {
+        count = 0;
+        do
+        {
+                success=rdrand64_step(&qrand);
+        } while((success == 0) || (count++ < retry_limit));
 
-		if (success == 1) 
-		{
-			*qptr = qrand;
-			qptr++;
-			total_uints+=2;
-		}
-		else (i = qwords);
-	}
-	if ((qwords > 0) && (success == 0)) return total_uints; 
+        if (success == 1) 
+        {
+            *qptr = qrand;
+            qptr++;
+            total_uints+=2;
+        }
+        else (i = qwords);
+    }
+    if ((qwords > 0) && (success == 0)) return total_uints; 
 
-	dest = (unsigned int*)qptr;
+    dest = (unsigned int*)qptr;
         for (i=0; i<dwords; i++)
         {
-		count = 0;
+        count = 0;
                 do
                 {
-                	success=rdrand32_step(&drand);
+                    success=rdrand32_step(&drand);
                 } while((success == 0) || (count++ < retry_limit));
 
                 if (success == 1)
                 {
                         *dest = qrand;
-			dest++;
+            dest++;
                         total_uints++;
                 }
-		else (i = dwords);
+        else (i = dwords);
         }
         return total_uints;
 }
 
 int rdseed_get_n_uints_retry(unsigned int n, unsigned int retry_limit, unsigned int *dest)
 {
-	int qwords;
-	int dwords;
-	int i;
+    int qwords;
+    int dwords;
+    int i;
 
-	unsigned long long int qrand;
-	unsigned int drand;
+    unsigned long long int qrand;
+    unsigned int drand;
 
-	int success;
-	int count;
+    int success;
+    int count;
 
-	int total_uints;
+    int total_uints;
 
-	unsigned long int *qptr;
+    unsigned long int *qptr;
 
-	total_uints = 0;
-	qptr = (unsigned long int*)dest;
+    total_uints = 0;
+    qptr = (unsigned long int*)dest;
 
-	qwords = n/2;
-	dwords = n -(qwords*2);
+    qwords = n/2;
+    dwords = n -(qwords*2);
 
-	for (i=0; i<qwords; i++)
-	{
-		count = 0;
-		do
-		{
-        		success=rdseed64_step(&qrand);
-		} while((success == 0) || (count++ < retry_limit));
+    for (i=0; i<qwords; i++)
+    {
+        count = 0;
+        do
+        {
+                success=rdseed64_step(&qrand);
+        } while((success == 0) || (count++ < retry_limit));
 
-		if (success == 1) 
-		{
-			*qptr = qrand;
-			qptr++;
-			total_uints+=2;
-		}
-		else (i = qwords);
-	}
-	if ((qwords > 0) && (success == 0)) return total_uints; 
+        if (success == 1) 
+        {
+            *qptr = qrand;
+            qptr++;
+            total_uints+=2;
+        }
+        else (i = qwords);
+    }
+    if ((qwords > 0) && (success == 0)) return total_uints; 
 
-	dest = (unsigned int*)qptr;
+    dest = (unsigned int*)qptr;
         for (i=0; i<dwords; i++)
         {
-		count = 0;
+        count = 0;
                 do
                 {
-                	success=rdseed32_step(&drand);
+                    success=rdseed32_step(&drand);
                 } while((success == 0) || (count++ < retry_limit));
 
                 if (success == 1)
                 {
                         *dest = qrand;
-			dest++;
+            dest++;
                         total_uints++;
                 }
-		else (i = dwords);
+        else (i = dwords);
         }
         return total_uints;
 }
@@ -627,7 +627,7 @@ int rdrand_get_n_uints(int n, unsigned int *dest)
                         qptr++;
                         total_uints+=2;
                 }
-		else (i = qwords);
+        else (i = qwords);
         }
         if ((qwords > 0) && (success == 0)) return total_uints;
 
@@ -640,7 +640,7 @@ int rdrand_get_n_uints(int n, unsigned int *dest)
                         dest++;
                         total_uints++;
                 }
-		else (i = dwords);
+        else (i = dwords);
         }
         return total_uints;
 
@@ -666,58 +666,59 @@ unsigned long long int i;
 unsigned long long int temprand;
 unsigned int length;
 
-	/* Compute the address of the first 64 bit aligned block in the destination buffer */
-	start = dest;
-	if (((unsigned long long int)start % (unsigned long long int)8) == 0)
-	{
-		blockstart = (unsigned long long int *)start;
-		count = n;
-		startlen = 0;
-	}
-	else
-	{
-		blockstart = (unsigned long long int *)(((unsigned long long int)start & ~(unsigned long long int)7)+(unsigned long long int)8);
-		count = n - (8 - (unsigned int)((unsigned long long int)start % 8));
-		startlen = (unsigned int)((unsigned long long int)blockstart - (unsigned long long int)start);
-	}
+    /* Compute the address of the first 64 bit aligned block in the destination buffer */
+    start = dest;
+    if (((unsigned long long int)start % (unsigned long long int)8) == 0)
+    {
+        blockstart = (unsigned long long int *)start;
+        count = n;
+        startlen = 0;
+    }
+    else
+    {
+        blockstart = (unsigned long long int *)(((unsigned long long int)start & ~(unsigned long long int)7)+(unsigned long long int)8);
+        count = n - (8 - (unsigned int)((unsigned long long int)start % 8));
+        startlen = (unsigned int)((unsigned long long int)blockstart - (unsigned long long int)start);
+    }
 
-	/* Compute the number of 64 bit blocks and the remaining number of bytes */
-	residual = count % 8;
-	length = count >> 3;
-	if (residual != 0)
-	{
-		residualstart = (unsigned char *)(blockstart + length);
-	}
+    /* Compute the number of 64 bit blocks and the remaining number of bytes */
+    residual = count % 8;
+    length = count >> 3;
+    if (residual != 0)
+    {
+        residualstart = (unsigned char *)(blockstart + length);
+    }
 
-	/* Get a temporary random number for use in the residuals. Failout if retry fails */
-	if (startlen > 0)
-	{
-		if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
-	}
+    /* Get a temporary random number for use in the residuals. Failout if retry fails */
+    if (startlen > 0)
+    {
+        if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
+    }
 
-	/* populate the starting misaligned block */
-	for (i = 0; i<startlen; i++)
-	{
-		start[i] = (unsigned char)(temprand & 0xff);
-		temprand = temprand >> 8;
-	}
+    /* populate the starting misaligned block */
+    for (i = 0; i<startlen; i++)
+    {
+        start[i] = (unsigned char)(temprand & 0xff);
+        temprand = temprand >> 8;
+    }
 
-	/* populate the central aligned block. Fail out if retry fails */
-	if (rdrand_get_n_qints_retry(length, 10, (void *)(blockstart)) == 0) return 0;
+    /* populate the central aligned block. Fail out if retry fails */
+    if (rdrand_get_n_qints_retry(length, 10, (void *)(blockstart)) == 0) return 0;
 
-	/* populate the final misaligned block */
-	if (residual > 0)
-	{
-		if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
-		for (i = 0; i<residual; i++)
-		{
-			residualstart[i] = (unsigned char)(temprand & 0xff);
-			temprand = temprand >> 8;
-		}
-	}
+    /* populate the final misaligned block */
+    if (residual > 0)
+    {
+        if (rdrand_get_n_qints_retry(1, 10, (void *)&temprand) == 0) return 0;
+        for (i = 0; i<residual; i++)
+        {
+            residualstart[i] = (unsigned char)(temprand & 0xff);
+            temprand = temprand >> 8;
+        }
+    }
 
         return 1;
 }
+
 
 
 

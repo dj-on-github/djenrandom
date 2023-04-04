@@ -212,50 +212,50 @@ double bias2entropy(double bias)
 {
     double result;
 
-	if (bias == 0.0) result = 0.0;
-	else if (bias == 1.0) result = 0.0;
-	else
-	{
-		result = -(bias)*logtwo(bias) -((1.0L-bias)*logtwo(1.0L-bias));
-	
-		if (isnan(result)) fprintf(stderr," Got NAN in bias2entropy bias=%f\n",bias);
-	}
-	return(result);
+    if (bias == 0.0) result = 0.0;
+    else if (bias == 1.0) result = 0.0;
+    else
+    {
+        result = -(bias)*logtwo(bias) -((1.0L-bias)*logtwo(1.0L-bias));
+    
+        if (isnan(result)) fprintf(stderr," Got NAN in bias2entropy bias=%f\n",bias);
+    }
+    return(result);
 }
 
 /* return bias on two biased inputs to an xor */
 double xorbias_2bit(double pa1, double pb1)
 {
-	double result;
-	double pa0;
-	double pb0;
+    double result;
+    double pa0;
+    double pb0;
 
-	pa0 = 1.0-pa1;
-	pb0 = 1.0-pb1;
+    pa0 = 1.0-pa1;
+    pb0 = 1.0-pb1;
 
-	result = (pa0 * pb1) + (pa1 * pb0);
+    result = (pa0 * pb1) + (pa1 * pb0);
 
-	if (isnan(result)) fprintf(stderr," Got NAN in xorbias_2bit\n");
-	return(result);
+    if (isnan(result)) fprintf(stderr," Got NAN in xorbias_2bit\n");
+    return(result);
 }
 
 /* return bias on three biased inputs to an xor */
 double xorbias_3bit(double pa1, double pb1, double pc1)
 {
-	double result;
-	double pa0;
-	double pb0;
-	double pc0;
+    double result;
+    double pa0;
+    double pb0;
+    double pc0;
 
-	pa0 = 1.0-pa1;
-	pb0 = 1.0-pb1;
-	pc0 = 1.0-pc1;
+    pa0 = 1.0-pa1;
+    pb0 = 1.0-pb1;
+    pc0 = 1.0-pc1;
 
-	/* Sum the joint probabilities of all the odd parity patterns. */
-	result = (pa0 * pb0 * pc1) + (pa0 * pb1 * pc0) + (pa1 * pb0 * pc0) + (pa1 * pb1 * pc1);
+    /* Sum the joint probabilities of all the odd parity patterns. */
+    result = (pa0 * pb0 * pc1) + (pa0 * pb1 * pc0) + (pa1 * pb0 * pc0) + (pa1 * pb1 * pc1);
 
-	if (isnan(result)) fprintf(stderr," Got NAN in xorbias_3bit\n");
-	return(result);
+    if (isnan(result)) fprintf(stderr," Got NAN in xorbias_3bit\n");
+    return(result);
 }
 
 /* Select between the different
@@ -264,142 +264,142 @@ double xorbias_3bit(double pa1, double pb1, double pc1)
 
 double dbl_entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 {
-	double result;
-	
-	if (model==MODEL_NORMAL)
-	{
-		result = normalsource(modelstate, rngstate);
-		return result;
-	}
-	else return(0.0);
+    double result;
+    
+    if (model==MODEL_NORMAL)
+    {
+        result = normalsource(modelstate, rngstate);
+        return result;
+    }
+    else return(0.0);
 }
 
 int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 {
-	int result;
-	if (model==MODEL_SUMS)
-	{
-		result = smoothsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_PURE)
- 	{
-		result = puresource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_BIASED)
- 	{
-		result = biasedsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_CORRELATED)
- 	{
-		result = correlatedsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_MARKOV2P)
- 	{
+    int result;
+    if (model==MODEL_SUMS)
+    {
+        result = smoothsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_PURE)
+    {
+        result = puresource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_BIASED)
+    {
+        result = biasedsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_CORRELATED)
+    {
+        result = correlatedsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_MARKOV2P)
+    {
         if (modelstate->fast_m2p==1) {
-		    result = markov2pfastsource(modelstate, rngstate);
-		    return result;
+            result = markov2pfastsource(modelstate, rngstate);
+            return result;
         } else {
-		    result = markov2psource(modelstate, rngstate);
-		    return result;
+            result = markov2psource(modelstate, rngstate);
+            return result;
         }
-	}
-	else if (model==MODEL_MARKOV_SIGMOID)
- 	{
-		result = markovsigmoidsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_SINBIAS)
- 	{
-		result = sinbiassource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_LCG)
- 	{
-		result = lcgsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_PCG)
- 	{
-		result = pcgsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_XORSHIFT)
- 	{
-		result = xorshiftsource(modelstate, rngstate);
-		return result;
-	}
-	else if (model==MODEL_FILE)
- 	{
-		if (rngstate->input_format==INFORMAT_HEX)
-		    result = filesourcehex(modelstate,rngstate);
-		else if (rngstate->input_format==INFORMAT_01)
-		    result = filesource(modelstate,rngstate);
-		else
-			result = filesourcebinary(modelstate, rngstate);
-		
-		return result;
-	}
-	else return 0;
+    }
+    else if (model==MODEL_MARKOV_SIGMOID)
+    {
+        result = markovsigmoidsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_SINBIAS)
+    {
+        result = sinbiassource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_LCG)
+    {
+        result = lcgsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_PCG)
+    {
+        result = pcgsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_XORSHIFT)
+    {
+        result = xorshiftsource(modelstate, rngstate);
+        return result;
+    }
+    else if (model==MODEL_FILE)
+    {
+        if (rngstate->input_format==INFORMAT_HEX)
+            result = filesourcehex(modelstate,rngstate);
+        else if (rngstate->input_format==INFORMAT_01)
+            result = filesource(modelstate,rngstate);
+        else
+            result = filesourcebinary(modelstate, rngstate);
+        
+        return result;
+    }
+    else return 0;
 }
 
 void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 {
-	if (model==MODEL_SUMS)
-	{
-		smoothinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_PURE)
- 	{
-		pureinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_BIASED)
- 	{
-		biasedinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_CORRELATED)
- 	{
-		correlatedinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_MARKOV2P)
- 	{
+    if (model==MODEL_SUMS)
+    {
+        smoothinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_PURE)
+    {
+        pureinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_BIASED)
+    {
+        biasedinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_CORRELATED)
+    {
+        correlatedinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_MARKOV2P)
+    {
         if (modelstate->fast_m2p==1) {
-		    markov2pfastinit(modelstate, rngstate);
+            markov2pfastinit(modelstate, rngstate);
         } else {
-		    markov2pinit(modelstate, rngstate);
+            markov2pinit(modelstate, rngstate);
         }
-	}
-	else if (model==MODEL_MARKOV_SIGMOID)
- 	{
-		markovsigmoidinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_SINBIAS)
- 	{
-		sinbiasinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_NORMAL)
-	{
-		normalinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_LCG)
-	{
-		lcginit(modelstate, rngstate);
-	}
-	else if (model==MODEL_PCG)
-	{
-		pcginit(modelstate, rngstate);
-	}
-	else if (model==MODEL_XORSHIFT)
-	{
-		xorshiftinit(modelstate, rngstate);
-	}
-	else if (model==MODEL_FILE)
-	{
-		fileinit(modelstate, rngstate);
-	}
+    }
+    else if (model==MODEL_MARKOV_SIGMOID)
+    {
+        markovsigmoidinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_SINBIAS)
+    {
+        sinbiasinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_NORMAL)
+    {
+        normalinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_LCG)
+    {
+        lcginit(modelstate, rngstate);
+    }
+    else if (model==MODEL_PCG)
+    {
+        pcginit(modelstate, rngstate);
+    }
+    else if (model==MODEL_XORSHIFT)
+    {
+        xorshiftinit(modelstate, rngstate);
+    }
+    else if (model==MODEL_FILE)
+    {
+        fileinit(modelstate, rngstate);
+    }
 }
 
 /********
@@ -409,53 +409,59 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 int main(int argc, char** argv)
 {
     int opt;
-	int i;
-	int j;
+    int i;
+    int j;
     unsigned char abyte;
-	int onek;
-	int tempindex;
-	int xoriter;
-	int abort;
-	double thevalue;
-	int thebit;
-	unsigned char thebyte;
-	int binary_mode;
+    int onek;
+    int tempindex;
+    int xor4bit;
+    int xor11bit;
+    int downsample;
+    int inputbits;
+    int shiftreg;
+    int newbit;
+    int xoriter;
+    int abort;
+    double thevalue;
+    int thebit;
+    unsigned char thebyte;
+    int binary_mode;
     int bits_per_byte;
-	int xormode;
-	int xorbits;
-	//int verbose_mode;
-	int kilobytes;
-	int no_k=1;
-	int ofile;
-	char errstr[2000];
-	char filename[1000];
-	char jfilename[1000];
-	char json_filename[1000];
-	char yaml_filename[1000];
-	char infilename[1000];
-	int model;
-	int using_xor_range;
-	int xmin;
-	int xmax;
-	
-	int input_format;
-	int linewidth;
+    int xormode;
+    int xorbits;
+    //int verbose_mode;
+    int kilobytes;
+    int no_k=1;
+    int ofile;
+    char errstr[2000];
+    char filename[1000];
+    char jfilename[1000];
+    char json_filename[1000];
+    char yaml_filename[1000];
+    char infilename[1000];
+    int model;
+    int using_xor_range;
+    int xmin;
+    int xmax;
+    
+    int input_format;
+    int linewidth;
     int lineindex;
     int width;
    
-	/* unsigned char entropy;*/
-	//double sums_entropy;
-	double postxor_entropy;
-	double total_entropy;
-	double prob;
+    /* unsigned char entropy;*/
+    //double sums_entropy;
+    double postxor_entropy;
+    double total_entropy;
+    double prob;
     
-	int samplenum;
-	int simrun;
-	unsigned char thesample[256];
-	unsigned char thebpbsample[2048];
-	double floatingpointsamples[256];
-	t_rngstate rngstate;
-	t_modelstate modelstate;
+    int samplenum;
+    int simrun;
+    unsigned char thesample[256];
+    unsigned char thebpbsample[2048];
+    double floatingpointsamples[256];
+    t_rngstate rngstate;
+    t_modelstate modelstate;
 
     int gotcorrelation;
     int gotbias;
@@ -464,38 +470,42 @@ int main(int argc, char** argv)
     int gotp10;
     int gotentropy;
     //int gotbitwidth;
-	FILE *fp=NULL;
+    FILE *fp=NULL;
 
     //double epsilon;
     
-	/* Defaults */
-	binary_mode = 0; /* binary when 1, hex when 0 */
+    /* Defaults */
+    xor4bit = 0;    // 0=Do not use the 4 bit xor decorrelator, 1 = do.
+    xor11bit = 0;    // 0=Do not use the 11 bit xor decorrelator, 1 = do.
+    downsample = 0;    // 0=Do not use the downsampler of the decorellator, 1 = do.
+    shiftreg = 0;  // Preset the decorrelator shiftregister to 0.
+    binary_mode = 0; /* binary when 1, hex when 0 */
     bits_per_byte = 8; /* default 8 bits per byte */
-	ofile = 0;       /* use stdout instead of outputfile*/
-	model = MODEL_PURE;
-	xormode = 0;  /* do xor when 1, else don't do xor */
-	xorbits = 3;  /* the number of bits to xor together when xormode=1 */
-	verbose_mode = 0;
-	kilobytes = 1;
-	modelstate.using_jfile = 0;
-	modelstate.using_infile = 0;
+    ofile = 0;       /* use stdout instead of outputfile*/
+    model = MODEL_PURE;
+    xormode = 0;  /* do xor when 1, else don't do xor */
+    xorbits = 3;  /* the number of bits to xor together when xormode=1 */
+    verbose_mode = 0;
+    kilobytes = 1;
+    modelstate.using_jfile = 0;
+    modelstate.using_infile = 0;
     modelstate.using_ofile = 0;
     modelstate.using_yaml = 0;
     modelstate.using_json = 0;
-	input_format = INFORMAT_HEX;
+    input_format = INFORMAT_HEX;
     rngstate.got_detseed=0;
     rngstate.detseed[0]=0;
-	rngstate.input_format = INFORMAT_HEX;
-	rngstate.randseed=0;
-	rngstate.rdrand_available=0;
-	rngstate.devurandom_available=0;
-	using_xor_range=0;
-	xmin=0;
-	xmax=0;
-	aesni_supported = 0;
+    rngstate.input_format = INFORMAT_HEX;
+    rngstate.randseed=0;
+    rngstate.rdrand_available=0;
+    rngstate.devurandom_available=0;
+    using_xor_range=0;
+    xmin=0;
+    xmax=0;
+    aesni_supported = 0;
 
-    modelstate.fast_m2p=0;	
-	gotcorrelation = 0;
+    modelstate.fast_m2p=0;  
+    gotcorrelation = 0;
     gotbias = 0;
     //gotmean = 0;
     gotp01 = 0;
@@ -503,7 +513,7 @@ int main(int argc, char** argv)
     gotentropy = 0;
     //gotbitwidth = 0;
     
-	modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
+    modelstate.lcg_a = 0x05DEECE66DULL;  /* Posix RAND48 default */
     modelstate.lcg_c = 11ULL;
     modelstate.lcg_m = 0x0001000000000000ULL; /* 2**48 */
     modelstate.lcg_truncate = 15; /* Lower bits to truncate */
@@ -511,30 +521,30 @@ int main(int argc, char** argv)
     modelstate.lcg_outbits= 33; /* number of bits in output */
     modelstate.lcg_index = 0;
 
-	modelstate.pcg_state_size=32;
-	modelstate.pcg_index=0;
-	modelstate.pcg_alg = PCG_LCG;
-	modelstate.pcg_of = XSH_RR;  
-	
-	modelstate.sinbias_amplitude = 0.5;
-	modelstate.sinbias_offset = 0.5;
-	modelstate.sinbias_period = 1000;
-	
-	modelstate.time = 0;
-	
-	rngstate.c_max=511;
-	
-	modelstate.left_stepsize = 0.1;
-	modelstate.right_stepsize = 0.1;
-	modelstate.bias = 0.5;
-	modelstate.correlation = 0.1;
-	modelstate.mean = 0.0;
-	modelstate.variance = 0.1;
-	modelstate.using_stepnoise = 0;
-	modelstate.stepnoise = 0.0;
-	modelstate.p01 = 0.5;
-	modelstate.p10 = 0.5;
-	modelstate.bitwidth=8;
+    modelstate.pcg_state_size=32;
+    modelstate.pcg_index=0;
+    modelstate.pcg_alg = PCG_LCG;
+    modelstate.pcg_of = XSH_RR;  
+    
+    modelstate.sinbias_amplitude = 0.5;
+    modelstate.sinbias_offset = 0.5;
+    modelstate.sinbias_period = 1000;
+    
+    modelstate.time = 0;
+    
+    rngstate.c_max=511;
+    
+    modelstate.left_stepsize = 0.1;
+    modelstate.right_stepsize = 0.1;
+    modelstate.bias = 0.5;
+    modelstate.correlation = 0.1;
+    modelstate.mean = 0.0;
+    modelstate.variance = 0.1;
+    modelstate.using_stepnoise = 0;
+    modelstate.stepnoise = 0.0;
+    modelstate.p01 = 0.5;
+    modelstate.p10 = 0.5;
+    modelstate.bitwidth=8;
     
     modelstate.curve = CURVE_LINEAR;
     strcpy(modelstate.curvestr,"Linear");
@@ -542,17 +552,17 @@ int main(int argc, char** argv)
     modelstate.sigmoid_state = 10;
     modelstate.min_range=-1.0;
     modelstate.max_range=1.0;
-	modelstate.xorshift_size=32;
-	//sums_entropy = 0.0;
-	postxor_entropy = 0.0;
-	total_entropy = 0.0;
+    modelstate.xorshift_size=32;
+    //sums_entropy = 0.0;
+    postxor_entropy = 0.0;
+    total_entropy = 0.0;
     width = 32;
-	linewidth = 32;
+    linewidth = 32;
     
     filename[0] = (char)0;
     modelstate.filename[0] = (char)0;
-	jfilename[0] = (char)0;
-	infilename[0] = (char)0;
+    jfilename[0] = (char)0;
+    infilename[0] = (char)0;
     json_filename[0] = (char)0;
     yaml_filename[0] = (char)0;
 
@@ -562,18 +572,17 @@ int main(int argc, char** argv)
     modelstate.yaml_file = NULL;
     modelstate.json_file = NULL;
 
-
     aesni_supported = aesni_check_support();
 
-	int tempa;
-	int tempb;
-	int xorselector;
-	int xorrange;
-	double pa1;
-	double pb1;
-	double pc1;
+    int tempa;
+    int tempb;
+    int xorselector;
+    int xorrange;
+    double pa1;
+    double pb1;
+    double pc1;
 
-	/* get the options and arguments */
+    /* get the options and arguments */
     int longIndex;
     int gotxmin;
     int gotxmax;
@@ -598,6 +607,9 @@ int main(int argc, char** argv)
     { "entropy", required_argument, NULL, 0 },
     { "fast", no_argument, NULL, 0 },
     { "bpb", required_argument, NULL, 0 },
+    { "xor4bit", no_argument, NULL, 0 },
+    { "xor11bit", no_argument, NULL, 0 },
+    { "downsample", no_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
@@ -651,20 +663,20 @@ int main(int argc, char** argv)
 
     /* Test for nondeterministic random source */
     
-	//if (rngstate.randseed==1) {
+    //if (rngstate.randseed==1) {
         if (rdrand_check_support()==1) {    
-            rngstate.rdrand_available=1;	
+            rngstate.rdrand_available=1;    
         }
         else if ((rngstate.devrandom =  fopen("/dev/urandom", "r")) !=NULL) {
             rngstate.devurandom_available = 1;
         }
         else {
             rngstate.rdrand_available=0;
-		    rngstate.devurandom_available = 0;
-		    //fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
+            rngstate.devurandom_available = 0;
+            //fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
             //exit(1);
-		}
-	//}
+        }
+    //}
     
     
     opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
@@ -811,6 +823,19 @@ int main(int argc, char** argv)
                 if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
                     bits_per_byte = atoi(optarg);
                 }
+
+                if( strcmp( "xor4bit", longOpts[longIndex].name ) == 0 ) {
+                    xor4bit = 1;
+                }
+
+                if( strcmp( "xor11bit", longOpts[longIndex].name ) == 0 ) {
+                    xor11bit = 1;
+                }
+
+                if( strcmp( "downsample", longOpts[longIndex].name ) == 0 ) {
+                    downsample = 1;
+                }
+
                 if( strcmp( "xmin", longOpts[longIndex].name ) == 0 ) {
                     gotxmin=1;
                     tempa = atoi(optarg);
@@ -967,21 +992,21 @@ int main(int argc, char** argv)
     } // end while
     
     /* Sort xmin and xmax */ 
-	if ((gotxmin==1) && (gotxmax==1))
-	{
-		using_xor_range = 1;
-		
-		if (tempa > tempb)
-		{
-			xmin = tempb;
-			xmax = tempa;
-		}
-		else
-		{
-			xmin = tempa;
-			xmax = tempb;
-		}
-	}
+    if ((gotxmin==1) && (gotxmax==1))
+    {
+        using_xor_range = 1;
+        
+        if (tempa > tempb)
+        {
+            xmin = tempb;
+            xmax = tempa;
+        }
+        else
+        {
+            xmin = tempa;
+            xmax = tempb;
+        }
+    }
 
     if ((rngstate.randseed==1) && (rngstate.got_detseed)) {
         fprintf(stderr,"Error - Can't have both deterministic and nondeterministic seeding (-s with -D).");
@@ -990,411 +1015,425 @@ int main(int argc, char** argv)
     
     if (rngstate.randseed==1) {
         if ((rngstate.rdrand_available==0) && (rngstate.devurandom_available==0)){
-		    fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
+            fprintf(stderr,"Neither /dev/urandom nor RdRand Supported for nondeterministic seeding.");
             exit(1);
-		}
-	}
+        }
+    }
     
     /* start the RNG */
     init_rng(&rngstate);
     
-	/* Range check the var args */
+    /* Range check the var args */
 
-	abort = 0;
-	if (using_xor_range == 1)
-	{
-		if (gotxmin != gotxmax)
-		{
-			fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be used together or not at all\n");
-			abort = 1;
-		}
-		if (xmin == xmax)
-		{
-			fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be different and positive\n");
-			abort = 1;
-		}
-		if (xmin < 1)
-		{
-			fprintf(stderr,"Error: -y (xor min) must be 1 or greater. Provided value = %d\n",xmin);
-			abort = 1;
-		}
-		if (xmax < 1)
-		{
-			fprintf(stderr,"Error: -z (xor max) must be 1 or greater. Provided value = %d\n",xmax);
-			abort = 1;
-		}
+    abort = 0;
+    if (using_xor_range == 1)
+    {
+        if (gotxmin != gotxmax)
+        {
+            fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be used together or not at all\n");
+            abort = 1;
+        }
+        if (xmin == xmax)
+        {
+            fprintf(stderr,"Error: -y and -z (xor_min and xor_max) must be different and positive\n");
+            abort = 1;
+        }
+        if (xmin < 1)
+        {
+            fprintf(stderr,"Error: -y (xor min) must be 1 or greater. Provided value = %d\n",xmin);
+            abort = 1;
+        }
+        if (xmax < 1)
+        {
+            fprintf(stderr,"Error: -z (xor max) must be 1 or greater. Provided value = %d\n",xmax);
+            abort = 1;
+        }
 
-		if (xormode==1)
-		{
-			fprintf(stderr,"Error: -x (xor ratio) cannot be used with the XOR range (-y, -z) options");
-			abort = 1;
-		}
+        if (xormode==1)
+        {
+            fprintf(stderr,"Error: -x (xor ratio) cannot be used with the XOR range (-y, -z) options");
+            abort = 1;
+        }
 
-	}
+    }
 
-	if ((bits_per_byte != 1) && (bits_per_byte != 2) && (bits_per_byte != 4) && (bits_per_byte != 8))
-	{
-        	fprintf(stderr,"Error: -b -bpb = %d. Bits per byte must be 1, 2, 4 or 8.\n",bits_per_byte);
-        	abort=1;
-	}
-	if (rngstate.c_max < 1)
-	{
-        	fprintf(stderr,"Error: -c n: cmax must be an integer of 1 or greater. Supplied value = %d\n",rngstate.c_max);
-        	abort=1;
-	}
+    if ((xor4bit+xor11bit+downsample) > 1) {
+            fprintf(stderr,"Error: Can only use one of --xor4bit, --xor11bit or --downsample at the same time.\n");
+            abort=1;
+    }
 
-	if (xorbits < 1)
-	{
-        	fprintf(stderr,"Error: -x n: XOR ratio out of bounds. n must be an integer of 1 or greater. Supplied value = %d\n",xorbits);
-        	abort=1;
+    if ((bits_per_byte != 1) && (bits_per_byte != 2) && (bits_per_byte != 4) && (bits_per_byte != 8))
+    {
+            fprintf(stderr,"Error: -b -bpb = %d. Bits per byte must be 1, 2, 4 or 8.\n",bits_per_byte);
+            abort=1;
+    }
+    if (rngstate.c_max < 1)
+    {
+            fprintf(stderr,"Error: -c n: cmax must be an integer of 1 or greater. Supplied value = %d\n",rngstate.c_max);
+            abort=1;
+    }
+
+    if (xorbits < 1)
+    {
+            fprintf(stderr,"Error: -x n: XOR ratio out of bounds. n must be an integer of 1 or greater. Supplied value = %d\n",xorbits);
+            abort=1;
         }
 
     if (modelstate.sinbias_period < 4)
     {
-        	fprintf(stderr,"Error: --sinbiad_period=%" PRId64 ": Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
-        	abort=1;
+            fprintf(stderr,"Error: --sinbiad_period=%" PRId64 ": Sinusoid period must be 4 or more\n",modelstate.sinbias_period);
+            abort=1;
     }
     
-	if (modelstate.left_stepsize == 0.0)
-	{
-        	fprintf(stderr,"Error: -l n: left stepsize cannot be 0.0. Supplied value = %f\n",modelstate.left_stepsize);
-        	abort=1;
+    if (modelstate.left_stepsize == 0.0)
+    {
+            fprintf(stderr,"Error: -l n: left stepsize cannot be 0.0. Supplied value = %f\n",modelstate.left_stepsize);
+            abort=1;
     }
-	if (modelstate.right_stepsize == 0.0)
-	{
-        	fprintf(stderr,"Error: -l n: right stepsize cannot be 0.0 . Supplied value = %f\n",modelstate.right_stepsize);
-        	abort=1;
+    if (modelstate.right_stepsize == 0.0)
+    {
+            fprintf(stderr,"Error: -l n: right stepsize cannot be 0.0 . Supplied value = %f\n",modelstate.right_stepsize);
+            abort=1;
         }
-	if (modelstate.left_stepsize < 0.0)
-	{
-        	fprintf(stderr,"Error: -l n: left stepsize cannot be negative. Supplied value = %f\n",modelstate.left_stepsize);
-        	abort=1;
+    if (modelstate.left_stepsize < 0.0)
+    {
+            fprintf(stderr,"Error: -l n: left stepsize cannot be negative. Supplied value = %f\n",modelstate.left_stepsize);
+            abort=1;
         }
-	if (modelstate.right_stepsize < 0.0)
-	{
-        	fprintf(stderr,"Error: -l n: right stepsize cannot be negative . Supplied value = %f\n",modelstate.right_stepsize);
-        	abort=1;
+    if (modelstate.right_stepsize < 0.0)
+    {
+            fprintf(stderr,"Error: -l n: right stepsize cannot be negative . Supplied value = %f\n",modelstate.right_stepsize);
+            abort=1;
         }
-	if (modelstate.stepnoise < 0.0)
-	{
-        	fprintf(stderr,"Error: --stepnoise n: stepnoise cannot be negative . Supplied value = %f\n",modelstate.stepnoise);
-        	abort=1;
-	}
-	if ((modelstate.bias < 0.0) || (modelstate.bias >1.0))
-	{
-		fprintf(stderr,"Error: --bias n: bias must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.bias);
-		abort=1;
-	}
+    if (modelstate.stepnoise < 0.0)
+    {
+            fprintf(stderr,"Error: --stepnoise n: stepnoise cannot be negative . Supplied value = %f\n",modelstate.stepnoise);
+            abort=1;
+    }
+    if ((modelstate.bias < 0.0) || (modelstate.bias >1.0))
+    {
+        fprintf(stderr,"Error: --bias n: bias must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.bias);
+        abort=1;
+    }
 
-	if ((modelstate.correlation < -1.0) || (modelstate.correlation >1.0))
-	{
-		fprintf(stderr,"Error: --correlation n: correlation must be between -1.0 and 1.0. Supplied value = %f\n",modelstate.correlation);
-		abort=1;
-	}
-	
-	if ((modelstate.p01 < 0.0) || (modelstate.p01 >1.0))
-	{
-		fprintf(stderr,"Error: --p01 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p01);
-		abort=1;
-	}
-	if ((modelstate.p10 < 0.0) || (modelstate.p10 >1.0))
-	{
-		fprintf(stderr,"Error: --p10 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p10);
-		abort=1;
-	}
-		
-	if (kilobytes < 1)
-	{
-        	fprintf(stderr,"Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
-        	abort=1;
+    if ((modelstate.correlation < -1.0) || (modelstate.correlation >1.0))
+    {
+        fprintf(stderr,"Error: --correlation n: correlation must be between -1.0 and 1.0. Supplied value = %f\n",modelstate.correlation);
+        abort=1;
+    }
+    
+    if ((modelstate.p01 < 0.0) || (modelstate.p01 >1.0))
+    {
+        fprintf(stderr,"Error: --p01 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p01);
+        abort=1;
+    }
+    if ((modelstate.p10 < 0.0) || (modelstate.p10 >1.0))
+    {
+        fprintf(stderr,"Error: --p10 n: P01 must be between 0.0 and 1.0. Supplied value = %f\n",modelstate.p10);
+        abort=1;
+    }
+        
+    if (kilobytes < 1)
+    {
+            fprintf(stderr,"Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
+            abort=1;
         }
-	if ((width >256) || (width < 1))
-	{
-		fprintf(stderr,"Error: Width must be from 1 to 256\n");
-		abort = 1;	
-	} 
-	if (model==MODEL_PCG) {
-	    if ((modelstate.pcg_state_size != 16) && (modelstate.pcg_state_size != 32)
-	          && (modelstate.pcg_state_size != 64) && (modelstate.pcg_state_size != 128)) {
-	        fprintf(stderr,"Error: A pcg_size must be one of 16, 32, 64 or 128\n");
-	        exit(1);
-	    }    
-	}
-	if (model==MODEL_XORSHIFT) {
-	    if ((modelstate.xorshift_size != 32) &&  (modelstate.xorshift_size != 128)) {
-	        fprintf(stderr,"Error: A xorshift_size must be one of 32 or 128\n");
-	        exit(1);
-	    }    
-	}
-	if (model==MODEL_MARKOV2P) {
-	    if (((gotcorrelation==1) || (gotbias==1)) &&  ((gotp01) || (gotp10))) {
-	        fprintf(stderr,"Error: Cannot give both correlation,bias and p01,p10 parameters with Markov model\n");
-	        exit(1);
-	    }    
-	    if (((gotcorrelation==1) || (gotbias==1)) &&  (gotentropy)) {
-	        fprintf(stderr,"Error: Cannot give both correlation,bias and entropy parameters with Markov model\n");
-	        exit(1);
-	    }  
-	    if (((gotp01==1) || (gotp10==1)) &&  (gotentropy)) {
-	        fprintf(stderr,"Error: Cannot give both p01,p10 and entropy parameters with Markov model\n");
-	        exit(1);
-	    }  
-	    
-	    // Deal with the 3 parameter types
-	    /*
-	    if (gotentropy==1) {
+    if ((width >256) || (width < 1))
+    {
+        fprintf(stderr,"Error: Width must be from 1 to 256\n");
+        abort = 1;  
+    } 
+    if (model==MODEL_PCG) {
+        if ((modelstate.pcg_state_size != 16) && (modelstate.pcg_state_size != 32)
+              && (modelstate.pcg_state_size != 64) && (modelstate.pcg_state_size != 128)) {
+            fprintf(stderr,"Error: A pcg_size must be one of 16, 32, 64 or 128\n");
+            exit(1);
+        }    
+    }
+    if (model==MODEL_XORSHIFT) {
+        if ((modelstate.xorshift_size != 32) &&  (modelstate.xorshift_size != 128)) {
+            fprintf(stderr,"Error: A xorshift_size must be one of 32 or 128\n");
+            exit(1);
+        }    
+    }
+    if (model==MODEL_MARKOV2P) {
+        if (((gotcorrelation==1) || (gotbias==1)) &&  ((gotp01) || (gotp10))) {
+            fprintf(stderr,"Error: Cannot give both correlation,bias and p01,p10 parameters with Markov model\n");
+            exit(1);
+        }    
+        if (((gotcorrelation==1) || (gotbias==1)) &&  (gotentropy)) {
+            fprintf(stderr,"Error: Cannot give both correlation,bias and entropy parameters with Markov model\n");
+            exit(1);
+        }  
+        if (((gotp01==1) || (gotp10==1)) &&  (gotentropy)) {
+            fprintf(stderr,"Error: Cannot give both p01,p10 and entropy parameters with Markov model\n");
+            exit(1);
+        }  
+        
+        // Deal with the 3 parameter types
+        /*
+        if (gotentropy==1) {
             epsilon = pow(2.0,-50);
             pick_point(&(modelstate.p01),&(modelstate.p10),modelstate.entropy,epsilon,modelstate.bitwidth,&rngstate);
             modelstate.bias = modelstate.p01/(modelstate.p10+modelstate.p01);
             modelstate.correlation = 1.0 - modelstate.p01 - modelstate.p10;   
         }
         else if ((gotbias == 1) || (gotcorrelation==1)) {
-	        if (gotbias==0){
+            if (gotbias==0){
                  modelstate.bias = 0.5;
             }
-	        
+            
             if (gotcorrelation==0) {
                 modelstate.correlation = 0.0;
             }
-	        modelstate.p01 = modelstate.bias * (1.0 - modelstate.correlation);
-	        modelstate.p10 = (1.0-modelstate.bias)*(1.0-modelstate.correlation);
-	        //fprintf(stderr,"bias = %f\n",modelstate.bias);
-	        //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
-	        //fprintf(stderr,"p01 = %f\n",modelstate.p01);
-	        //fprintf(stderr,"p10 = %f\n",modelstate.p10);
-	    } else if ((gotp01 == 1) || (gotp10==1))  {
-	    	if (gotp01==0) modelstate.p01 = 0.5;
-	        if (gotp10==0) modelstate.p10 = 0.5;
+            modelstate.p01 = modelstate.bias * (1.0 - modelstate.correlation);
+            modelstate.p10 = (1.0-modelstate.bias)*(1.0-modelstate.correlation);
+            //fprintf(stderr,"bias = %f\n",modelstate.bias);
+            //fprintf(stderr,"correlation = %f\n",modelstate.correlation);
+            //fprintf(stderr,"p01 = %f\n",modelstate.p01);
+            //fprintf(stderr,"p10 = %f\n",modelstate.p10);
+        } else if ((gotp01 == 1) || (gotp10==1))  {
+            if (gotp01==0) modelstate.p01 = 0.5;
+            if (gotp10==0) modelstate.p10 = 0.5;
             modelstate.correlation = 1.0 - modelstate.p10 - modelstate.p01;
             modelstate.bias  = modelstate.p10/(modelstate.p10+modelstate.p01);
-	    } else if (gotentropy==0) {
-	        modelstate.entropy = 1.0;
+        } else if (gotentropy==0) {
+            modelstate.entropy = 1.0;
             modelstate.p01 = 0.5;
             modelstate.p10 = 0.5;
             modelstate.bias = 0.5;
             modelstate.correlation = 0.0;
-	    }
-	    */
-	    
-	    
-	}
-	if (model==MODEL_FILE) {
-		if (modelstate.using_infile == 0) {
-			fprintf(stderr,"Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
-		abort = 1;
-		} 
-	}
-	if (abort==1) {
-		exit(1);
-	}
+        }
+        */
+        
+        
+    }
+    if (model==MODEL_FILE) {
+        if (modelstate.using_infile == 0) {
+            fprintf(stderr,"Error: A file must be provided for the file input model using -i <filename> or --infile=<filename>\n");
+        abort = 1;
+        } 
+    }
+    if (abort==1) {
+        exit(1);
+    }
 
 
-	
-	/* Print out the job parameters */
-	if (verbose_mode>0)
-	{
+    
+    /* Print out the job parameters */
+    if (verbose_mode>0)
+    {
         if (aesni_check_support() == 1)
             fprintf(stderr,"AESNI Supported in instruction set\n");
         else
             fprintf(stderr,"AESNI Not supported in instruction set\n");
  
-		if (binary_mode == 0)
-			fprintf(stderr,"Format=Hex\n");
-		else
-			fprintf(stderr,"Format=Binary\n");
+        if (binary_mode == 0)
+            fprintf(stderr,"Format=Hex\n");
+        else
+            fprintf(stderr,"Format=Binary\n");
 
-		if (model == MODEL_SUMS)
-		{
-			fprintf(stderr,"model=sums\n");
-			fprintf(stderr,"  left stepsize  = %f\n",modelstate.left_stepsize);
-			fprintf(stderr,"  right stepsize = %f\n",modelstate.right_stepsize);
-			if (modelstate.using_stepnoise==0)
-			{
-				fprintf(stderr,"  Not adding noise to stepsize\n");
-			}
-			else
-				fprintf(stderr,"  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
-		}
+        if (model == MODEL_SUMS)
+        {
+            fprintf(stderr,"model=sums\n");
+            fprintf(stderr,"  left stepsize  = %f\n",modelstate.left_stepsize);
+            fprintf(stderr,"  right stepsize = %f\n",modelstate.right_stepsize);
+            if (modelstate.using_stepnoise==0)
+            {
+                fprintf(stderr,"  Not adding noise to stepsize\n");
+            }
+            else
+                fprintf(stderr,"  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
+        }
 
-		if (model == MODEL_PURE)
-		{
-			fprintf(stderr,"model=pure\n");
-		}
+        if (model == MODEL_PURE)
+        {
+            fprintf(stderr,"model=pure\n");
+        }
 
-		if (model == MODEL_BIASED)
-		{
-			fprintf(stderr,"model=biased\n");
-			fprintf(stderr,"  bias  = %f\n",modelstate.bias);
-		}
+        if (model == MODEL_BIASED)
+        {
+            fprintf(stderr,"model=biased\n");
+            fprintf(stderr,"  bias  = %f\n",modelstate.bias);
+        }
 
-		if (model == MODEL_CORRELATED)
-		{
-			fprintf(stderr,"model=correlated\n");
-			fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
-		}
+        if (model == MODEL_CORRELATED)
+        {
+            fprintf(stderr,"model=correlated\n");
+            fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
+        }
 
-		if (model == MODEL_MARKOV2P)
-		{
+        if (model == MODEL_MARKOV2P)
+        {
             //double entropy;
             //double lmcv_prob;
             //uint64_t lmcv;
 
             //entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
-			/*
+            /*
             fprintf(stderr,"model=markov_2_param\n");
-			fprintf(stderr,"  bias            = %f\n",modelstate.bias);
-			fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
-			fprintf(stderr,"  p01             = %f\n",modelstate.p01);
-			fprintf(stderr,"  p10             = %f\n",modelstate.p10);
-			fprintf(stderr,"  entropy         = %f\n",entropy);
-			fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
-			fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
+            fprintf(stderr,"  bias            = %f\n",modelstate.bias);
+            fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
+            fprintf(stderr,"  p01             = %f\n",modelstate.p01);
+            fprintf(stderr,"  p10             = %f\n",modelstate.p10);
+            fprintf(stderr,"  entropy         = %f\n",entropy);
+            fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
+            fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
             */
-			
-		}
-		if (model == MODEL_MARKOV_SIGMOID)
-		{
-			fprintf(stderr,"model=markov_sigmoid\n");
+            
+        }
+        if (model == MODEL_MARKOV_SIGMOID)
+        {
+            fprintf(stderr,"model=markov_sigmoid\n");
             fprintf(stderr,"  Chain Length    = %d\n",modelstate.states);
-			fprintf(stderr,"  curve           = %s\n",modelstate.curvestr);
-			fprintf(stderr,"  range from      = %f\n",modelstate.min_range);
-			fprintf(stderr,"          to      = %f\n",modelstate.max_range);
-		}
-				
-		if (model == MODEL_LCG)
-		{
-			fprintf(stderr,"model=linear congruential generator\n");
-			fprintf(stderr,"  a  = 0x%llx\n",modelstate.lcg_a);
-			fprintf(stderr,"  c  = 0x%llx\n",modelstate.lcg_c);
-			fprintf(stderr,"  m  = 0x%llx\n",modelstate.lcg_m);
-			fprintf(stderr,"  start x = 0x%llx\n",modelstate.lcg_x % modelstate.lcg_m);
-			fprintf(stderr,"  Output bit field = %d:%d\n",
-			        (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
-		}
-		if (model == MODEL_PCG)
-		{
-			fprintf(stderr,"model=permuted congruential generator\n");
-			fprintf(stderr,"  state size = %d\n",modelstate.pcg_state_size);
-			if (modelstate.pcg_alg == PCG_MCG)
-			    fprintf(stderr,"  State update algorithm MCG\n");
-			else if (modelstate.pcg_alg == PCG_LCG)
-			    fprintf(stderr,"  State update algorithm LCG\n");
-			else
-			    fprintf(stderr,"  Unknown State Update Function %d\n", modelstate.pcg_alg);
-			        
-			if (modelstate.pcg_of == XSH_RS)
-			    fprintf(stderr,"  Output function XSH_RS\n");
-			else if (modelstate.pcg_of == XSH_RR)
-			    fprintf(stderr,"  Output function XSH_RR\n");
-			else
-			    fprintf(stderr,"  Unknown Output function %d\n", modelstate.pcg_of);
-		}
-		if (model == MODEL_XORSHIFT)	
-		{
-			fprintf(stderr,"model=XORSHIFT\n");
-		}	
-		if (model == MODEL_NORMAL)
-		{
-			fprintf(stderr,"model=normal\n");
-			fprintf(stderr,"  mean  = %f\n",modelstate.mean);
-			fprintf(stderr,"  variance  = %f\n",modelstate.variance);
-		}
+            fprintf(stderr,"  curve           = %s\n",modelstate.curvestr);
+            fprintf(stderr,"  range from      = %f\n",modelstate.min_range);
+            fprintf(stderr,"          to      = %f\n",modelstate.max_range);
+        }
+                
+        if (model == MODEL_LCG)
+        {
+            fprintf(stderr,"model=linear congruential generator\n");
+            fprintf(stderr,"  a  = 0x%llx\n",modelstate.lcg_a);
+            fprintf(stderr,"  c  = 0x%llx\n",modelstate.lcg_c);
+            fprintf(stderr,"  m  = 0x%llx\n",modelstate.lcg_m);
+            fprintf(stderr,"  start x = 0x%llx\n",modelstate.lcg_x % modelstate.lcg_m);
+            fprintf(stderr,"  Output bit field = %d:%d\n",
+                    (modelstate.lcg_truncate)+(modelstate.lcg_outbits)-1,modelstate.lcg_truncate);
+        }
+        if (model == MODEL_PCG)
+        {
+            fprintf(stderr,"model=permuted congruential generator\n");
+            fprintf(stderr,"  state size = %d\n",modelstate.pcg_state_size);
+            if (modelstate.pcg_alg == PCG_MCG)
+                fprintf(stderr,"  State update algorithm MCG\n");
+            else if (modelstate.pcg_alg == PCG_LCG)
+                fprintf(stderr,"  State update algorithm LCG\n");
+            else
+                fprintf(stderr,"  Unknown State Update Function %d\n", modelstate.pcg_alg);
+                    
+            if (modelstate.pcg_of == XSH_RS)
+                fprintf(stderr,"  Output function XSH_RS\n");
+            else if (modelstate.pcg_of == XSH_RR)
+                fprintf(stderr,"  Output function XSH_RR\n");
+            else
+                fprintf(stderr,"  Unknown Output function %d\n", modelstate.pcg_of);
+        }
+        if (model == MODEL_XORSHIFT)    
+        {
+            fprintf(stderr,"model=XORSHIFT\n");
+        }   
+        if (model == MODEL_NORMAL)
+        {
+            fprintf(stderr,"model=normal\n");
+            fprintf(stderr,"  mean  = %f\n",modelstate.mean);
+            fprintf(stderr,"  variance  = %f\n",modelstate.variance);
+        }
 
-		if (model == MODEL_FILE)
-		{
-			fprintf(stderr,"model=file\n");
-			fprintf(stderr,"  filename  = %s\n",infilename);
-			if (rngstate.input_format == INFORMAT_HEX)
-			    fprintf(stderr,"  File input format Hex\n");
-			else if (rngstate.input_format == INFORMAT_BINARY)
-			    fprintf(stderr,"  File input format Binary\n");
-			else if (rngstate.input_format == INFORMAT_01 )
-			    fprintf(stderr,"  File input format ASCII Binary\n");
-			else
-			    fprintf(stderr,"  Unknown input format :%d\n",rngstate.input_format);
-		}
+        if (model == MODEL_FILE)
+        {
+            fprintf(stderr,"model=file\n");
+            fprintf(stderr,"  filename  = %s\n",infilename);
+            if (rngstate.input_format == INFORMAT_HEX)
+                fprintf(stderr,"  File input format Hex\n");
+            else if (rngstate.input_format == INFORMAT_BINARY)
+                fprintf(stderr,"  File input format Binary\n");
+            else if (rngstate.input_format == INFORMAT_01 )
+                fprintf(stderr,"  File input format ASCII Binary\n");
+            else
+                fprintf(stderr,"  Unknown input format :%d\n",rngstate.input_format);
+        }
 
-		fprintf(stderr,"size = %d kilobytes\n", kilobytes);
+        fprintf(stderr,"size = %d kilobytes\n", kilobytes);
 
-		if (xormode == 1)
-			fprintf(stderr,"XOR mode on, fixed ratio=%d:1\n",xorbits);
-		else
-			fprintf(stderr,"XOR mode off\n");
+        if (xor4bit==1)
+            fprintf(stderr,"4 bit decorrelator/decimator being used");
+        
+        if (xor11bit==1)
+            fprintf(stderr,"11 bit decorrelator/decimator being used");
+        
+        if (downsample==1)
+            fprintf(stderr,"16-4 downsampler being used");
 
-		if (using_xor_range == 1)
-			fprintf(stderr,"XOR range mode on, ratios between %d:1 and %d:1, chosen randomly\n",xmin, xmax);
-		else
-			fprintf(stderr,"XOR range mode off\n");
+        if (xormode == 1)
+            fprintf(stderr,"XOR mode on, fixed ratio=%d:1\n",xorbits);
+        else
+            fprintf(stderr,"XOR mode off\n");
 
-		if (ofile == 0)
-			fprintf(stderr,"Output to STDOUT\n");
-		else
-			fprintf(stderr,"Output to file %s\n",filename);
+        if (using_xor_range == 1)
+            fprintf(stderr,"XOR range mode on, ratios between %d:1 and %d:1, chosen randomly\n",xmin, xmax);
+        else
+            fprintf(stderr,"XOR range mode off\n");
 
-		if (rngstate.randseed==1)
-		{
-			fprintf(stderr,"Hardware Random Seeding on. Non deterministic mode\n");
-			fprintf(stderr,"  Reseed c_max=%d\n",rngstate.c_max);
-			if (rngstate.rdrand_available) {
-			    fprintf(stderr,"  Using RdRand as nondeterministic source\n");
-			}
-			else if(rngstate.devurandom_available) {
-			    fprintf(stderr,"  Using /dev/urandom as nondeterministic source");
-			}   
-		}
-		else
-		{
-			fprintf(stderr,"Hardware Random Seeding off. Deterministic mode.\n");
-			fprintf(stderr,"  Restir c_max=%d\n",rngstate.c_max);
-		}
-		
-		if (modelstate.using_jfile==1)
-		{
-			fprintf(stderr,"Outputting internal per bit bias to file %s\n",jfilename);
-		}
-	}
+        if (ofile == 0)
+            fprintf(stderr,"Output to STDOUT\n");
+        else
+            fprintf(stderr,"Output to file %s\n",filename);
 
-	/* open the output file if needed */
+        if (rngstate.randseed==1)
+        {
+            fprintf(stderr,"Hardware Random Seeding on. Non deterministic mode\n");
+            fprintf(stderr,"  Reseed c_max=%d\n",rngstate.c_max);
+            if (rngstate.rdrand_available) {
+                fprintf(stderr,"  Using RdRand as nondeterministic source\n");
+            }
+            else if(rngstate.devurandom_available) {
+                fprintf(stderr,"  Using /dev/urandom as nondeterministic source");
+            }   
+        }
+        else
+        {
+            fprintf(stderr,"Hardware Random Seeding off. Deterministic mode.\n");
+            fprintf(stderr,"  Restir c_max=%d\n",rngstate.c_max);
+        }
+        
+        if (modelstate.using_jfile==1)
+        {
+            fprintf(stderr,"Outputting internal per bit bias to file %s\n",jfilename);
+        }
+    }
 
-	if (ofile==1)
-	{
-		fp = fopen(filename, "wb");
-		if (fp == NULL) {
-		    sprintf(errstr,"failed to open output file %s for writing",filename);
-			perror(errstr);
-			exit(1);
-		}
-	}
+    /* open the output file if needed */
 
-	/* open the j file if needed */
-	if (modelstate.using_jfile==1)
-	{
-		modelstate.jfile = fopen(jfilename, "wb");
-		if (modelstate.jfile == NULL) {
-			sprintf(errstr,"failed to open output j file %s for writing",jfilename);
-			perror(errstr);
-			exit(1);
-		}
-	}
+    if (ofile==1)
+    {
+        fp = fopen(filename, "wb");
+        if (fp == NULL) {
+            sprintf(errstr,"failed to open output file %s for writing",filename);
+            perror(errstr);
+            exit(1);
+        }
+    }
 
-	/* open the input file if needed */
-	if (modelstate.using_infile==1)
-	{
-	    if (rngstate.input_format==INFORMAT_BINARY)
-	        modelstate.infile = fopen(infilename,"rb");
-	    else
-		    modelstate.infile =  fopen(infilename, "r");
-		if (modelstate.infile == NULL) {
+    /* open the j file if needed */
+    if (modelstate.using_jfile==1)
+    {
+        modelstate.jfile = fopen(jfilename, "wb");
+        if (modelstate.jfile == NULL) {
+            sprintf(errstr,"failed to open output j file %s for writing",jfilename);
+            perror(errstr);
+            exit(1);
+        }
+    }
+
+    /* open the input file if needed */
+    if (modelstate.using_infile==1)
+    {
+        if (rngstate.input_format==INFORMAT_BINARY)
+            modelstate.infile = fopen(infilename,"rb");
+        else
+            modelstate.infile =  fopen(infilename, "r");
+        if (modelstate.infile == NULL) {
             sprintf(errstr,"Failed to input file %s for reading",infilename);
-			perror(errstr);
-			exit(1);
-		}
-		else
-		{
-			if (verbose_mode>0)
-				fprintf(stderr,"opened input file %s for reading\n",infilename);
-		}
-	}
+            perror(errstr);
+            exit(1);
+        }
+        else
+        {
+            if (verbose_mode>0)
+                fprintf(stderr,"opened input file %s for reading\n",infilename);
+        }
+    }
 
     /* Open the JSON File if needed */
     if (modelstate.using_json==1) {
@@ -1404,10 +1443,10 @@ int main(int argc, char** argv)
             perror(errstr);
             exit(1);
         }
-		else {
-			if (verbose_mode>0)
-				fprintf(stderr,"opened JSON ouput file %s for writing\n",json_filename);
-		}
+        else {
+            if (verbose_mode>0)
+                fprintf(stderr,"opened JSON ouput file %s for writing\n",json_filename);
+        }
     }
 
     /* Open the YAML File if needed */
@@ -1418,85 +1457,149 @@ int main(int argc, char** argv)
             perror(errstr);
             exit(1);
         }
-		else {
-			if (verbose_mode>0)
-				fprintf(stderr,"opened YAML ouput file %s for writing\n",yaml_filename);
-		}
+        else {
+            if (verbose_mode>0)
+                fprintf(stderr,"opened YAML ouput file %s for writing\n",yaml_filename);
+        }
     }
 
-	/* Initialize the RNG */
-	initialize_sim(model, &modelstate, &rngstate);
+    /* Initialize the RNG */
+    initialize_sim(model, &modelstate, &rngstate);
 
-	/* For each stepsize, perform the simulation over 256 samples */
-	/* And do it 4 times */
+    /* For each stepsize, perform the simulation over 256 samples */
+    /* And do it 4 times */
 
-	/* entropy = 0x00;*/
-	/* Pull some bits to let it settle. */
-	if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
-	for(i=0; i<128; i++)
-	{
-		thebit = entropysource(model, &modelstate, &rngstate);
-		modelstate.lastbit = thebit;
-	}
+    /* entropy = 0x00;*/
+    /* Pull some bits to let it settle. */
+    if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
+    for(i=0; i<128; i++)
+    {
+        thebit = entropysource(model, &modelstate, &rngstate);
+        modelstate.lastbit = thebit;
+    }
 
-	/* Start with pulling samples and testing them */
+    /* Start with pulling samples and testing them */
 
-	if (model==MODEL_NORMAL) /* or any other floating point model that is added */
-	{
-		
-		for (simrun =0; simrun < kilobytes; simrun++)
-		{
-			for (onek=0;onek<4;onek++)
-			{
-				for(samplenum=0;samplenum<256;samplenum++)
-				{
-					thevalue = dbl_entropysource(model, &modelstate, &rngstate);
-					floatingpointsamples[samplenum]=thevalue;
-				}
+    if (model==MODEL_NORMAL) /* or any other floating point model that is added */
+    {
+        
+        for (simrun =0; simrun < kilobytes; simrun++)
+        {
+            for (onek=0;onek<4;onek++)
+            {
+                for(samplenum=0;samplenum<256;samplenum++)
+                {
+                    thevalue = dbl_entropysource(model, &modelstate, &rngstate);
+                    floatingpointsamples[samplenum]=thevalue;
+                }
 
-				/* Output the 256 value block */
+                /* Output the 256 value block */
 
-				if (ofile == 1 && binary_mode==1) /* binary to a file */
-				{
-					fwrite(floatingpointsamples, 256*sizeof(double), 1, fp);
-				}
-				else if (ofile == 0 && binary_mode == 0) /* floatingpoint text to stdout */
-				{
-					for (j=0;j<256;j++)
-					{
-						fprintf(stdout,"%0.8f\n",floatingpointsamples[j]);
-					}
-				}
-				else if (ofile == 1 && binary_mode == 0) /* Floatingpoint text to a file */
-				{
-					for (j=0;j<256;j++)
-					{
-						fprintf(fp,"%0.8f\n",floatingpointsamples[j]);
-					}
+                if (ofile == 1 && binary_mode==1) /* binary to a file */
+                {
+                    fwrite(floatingpointsamples, 256*sizeof(double), 1, fp);
+                }
+                else if (ofile == 0 && binary_mode == 0) /* floatingpoint text to stdout */
+                {
+                    for (j=0;j<256;j++)
+                    {
+                        fprintf(stdout,"%0.8f\n",floatingpointsamples[j]);
+                    }
+                }
+                else if (ofile == 1 && binary_mode == 0) /* Floatingpoint text to a file */
+                {
+                    for (j=0;j<256;j++)
+                    {
+                        fprintf(fp,"%0.8f\n",floatingpointsamples[j]);
+                    }
 
-				}
-				else /* binary to stdout */
-				{
-					fwrite(floatingpointsamples, 256*sizeof(double), 1, stdout);
-				}
-			}
+                }
+                else /* binary to stdout */
+                {
+                    fwrite(floatingpointsamples, 256*sizeof(double), 1, stdout);
+                }
+            }
 
-		}
-	}
-	else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
-	{
+        }
+    }
+    else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
+    {
         lineindex = 0;
         
-		for (simrun =0; ((simrun < kilobytes) || ((model==MODEL_FILE) && (no_k==1))); simrun++)
-		{
-			for (onek=0;onek<4;onek++)
-			{
-				for(samplenum=0;samplenum<256;samplenum++)
-				{
-					thebyte = (unsigned char)0x00;
+        for (simrun =0; ((simrun < kilobytes) || ((model==MODEL_FILE) && (no_k==1))); simrun++)
+        {
+            for (onek=0;onek<4;onek++)
+            {
+                for(samplenum=0;samplenum<256;samplenum++) {
+                    thebyte = (unsigned char)0x00;
 
-					/* Pull 8 bits */
-                    if ((model==MODEL_MARKOV2P) && (modelstate.fast_m2p==1)) {
+                    /* Pull 8 bits */
+                    if (xor4bit==1) {
+                        // The first 4 bits of the byte
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7);
+                            shiftreg = ((((shiftreg & 0x8)>>3)^newbit) & 0x1) | ((shiftreg<<1) & 0xe);
+                        }
+                        thebyte = (shiftreg & 0xf);
+                        
+                        // The second 4 bits of the byte
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x8)>>3)^newbit) & 0x1) | ((shiftreg<<1) & 0xe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<3) | ((shiftreg>>1) & 0x7); // new bit and bit 0 xored into bit 3. bits 3-1 shifted to 2-0.
+                        }
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
+                    } else if (xor11bit==1) {
+                        // The first 4 bits of the byte
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x400)>>10)^newbit) & 0x1) | ((shiftreg<<1) & 0x7fe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
+                        }
+                        thebyte = (shiftreg & 0xf);
+                        
+                        // The second 4 bits of the byte
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            shiftreg = ((((shiftreg & 0x400)>>10)^newbit) & 0x1) | ((shiftreg<<1) & 0x7fe);
+                            //shiftreg = (((shiftreg & 0x1)^newbit)<<10) | ((shiftreg>>1) & 0x3ff); // new bit and bit 0 xored into bit 10. bits 10-1 shifted to 9-0. 
+                        }
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
+                    } else if (downsample==1) {
+                        // The first 4 bits of the byte
+                        inputbits = 0;
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            //inputbits = (inputbits << 1) | (newbit & 0x1);
+                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                            //shiftreg = ((newbit<<3) | ((shiftreg>>1) & 0x7)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                        }
+                        thebyte = (shiftreg & 0xf);
+                        //fprintf(stderr, "\ndownsample got %04x in.",inputbits);
+                        //fprintf(stderr, " Returned %x.\n",thebyte);
+                        
+                        // The second 4 bits of the byte
+                        inputbits = 0;
+                        for (xoriter=0; xoriter < 16; xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+                            //inputbits = (inputbits << 1) | (newbit & 0x1);
+                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                            //shiftreg = ((newbit<<3) | ((shiftreg>>1) & 0x7)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                        }
+                        //fprintf(stderr, "\ndownsample got %04x in",inputbits);
+                        //thebyte = thebyte | ((shiftreg & 0xf) << 4);
+                        thebyte = (thebyte << 4) | (shiftreg & 0xf);
+                        //fprintf(stderr, " Returned %02x.\n",thebyte);
+                    } else if ((model==MODEL_MARKOV2P) && (modelstate.fast_m2p==1)) {
                         thebyte = markov2pfastsource(&modelstate, &rngstate);
                         //if (rngstate.reached_eof == 1) {
                         //    if ((samplenum > 0) && (samplenum < 256)) {
@@ -1511,6 +1614,7 @@ int main(int argc, char** argv)
                         //modelstate.lastbit = thebit;
                         //prob = modelstate.bias;
                     } else {
+
                         for(i=0; i<8; i++)
                         {
                             if (xormode==1)
@@ -1567,24 +1671,27 @@ int main(int argc, char** argv)
 
                             if ((thebit & 0x01)==1)
                             {
+                                //thebyte = ((thebyte >> 1) & 0x7f) | 0x80;
                                 thebyte = (thebyte << 1) | 0x01;
                             }
                             else
                             {
+                                //thebyte = ((thebyte >> 1) & 0x7f);
                                 thebyte = (thebyte << 1) & 0xfe;
                             }
                         } // end for i = 1..7
-					} // end else not fast
+                    } // end else not fast
 
-					thesample[samplenum]=thebyte;
-				}
+                    thesample[samplenum]=thebyte;
+                    //fprintf(stderr, "non downsample returned %02X\n",thebyte);
+                }
 
-				/* Output the 256 byte block */
+                /* Output the 256 byte block */
                 eof_with_partial_block:
-				if (ofile == 1 && binary_mode==1) /* binary to a file */
-				{
+                if (ofile == 1 && binary_mode==1) /* binary to a file */
+                {
                     if (bits_per_byte == 8) {
-					    fwrite(thesample, samplenum, 1, fp);
+                        fwrite(thesample, samplenum, 1, fp);
                     } else if (bits_per_byte == 4) {
                         for (i=0;i<samplenum;i++) {
                             abyte = thesample[i];
@@ -1615,10 +1722,10 @@ int main(int argc, char** argv)
                         }
                         fwrite(thebpbsample, (samplenum * 8) ,1, fp);
                     }
-				}
-				else if (ofile == 0 && binary_mode == 0) /* hex to stdout */
-				{
-					tempindex = 0;
+                }
+                else if (ofile == 0 && binary_mode == 0) /* hex to stdout */
+                {
+                    tempindex = 0;
                     /* fprintf(stderr," Samplenum %d\n",samplenum);*/
                     do {
                         printf("%02X",thesample[tempindex++]);
@@ -1629,9 +1736,9 @@ int main(int argc, char** argv)
                         }
                     } while (tempindex <samplenum);
                     if (lineindex != 0) printf("\n");
-				}
-				else if (ofile == 1 && binary_mode == 0) /* Hex to a file */
-				{
+                }
+                else if (ofile == 1 && binary_mode == 0) /* Hex to a file */
+                {
                     tempindex = 0;
                     lineindex = 0;
                     
@@ -1644,11 +1751,11 @@ int main(int argc, char** argv)
                         }
                     } while (tempindex < samplenum);
                     if (lineindex != 0) fprintf(fp,"\n");
-				}
-				else /* binary to stdout */
-				{
+                }
+                else /* binary to stdout */
+                {
                     if (bits_per_byte == 8) {
-					    fwrite(thesample, samplenum, 1, stdout);
+                        fwrite(thesample, samplenum, 1, stdout);
                     } else if (bits_per_byte == 4) {
                         for (i=0;i<samplenum;i++) {
                             abyte = thesample[i];
@@ -1679,26 +1786,27 @@ int main(int argc, char** argv)
                         }
                         fwrite(thebpbsample, (samplenum * 8) ,1, stdout);
                     }
-					/*fwrite(thesample, samplenum, 1, stdout);*/
-				}
-			}
-		}
-		reached_eof:
-		
-		if (verbose_mode>0)
-		{
-			fprintf(stderr,"Total Entropy = %F\n",total_entropy);
-			fprintf(stderr,"Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));
-		}
-	}
+                    /*fwrite(thesample, samplenum, 1, stdout);*/
+                }
+            }
+        }
+        reached_eof:
+        
+        if (verbose_mode>0)
+        {
+            fprintf(stderr,"Total Entropy = %F\n",total_entropy);
+            fprintf(stderr,"Per bit Entropy = %F %% \n",(100.0*(total_entropy/(8.0*kilobytes*1024.0))));
+        }
+    }
 
     if (fp                   != NULL) fclose(fp);
     if (modelstate.jfile     != NULL) fclose(modelstate.jfile);
     if (modelstate.infile    != NULL) fclose(modelstate.infile);
     if (modelstate.json_file != NULL) fclose(modelstate.json_file);
     if (modelstate.yaml_file != NULL) fclose(modelstate.yaml_file);
-	return 0;
+    return 0;
 
 }
+
 
 
