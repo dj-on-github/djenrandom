@@ -667,7 +667,8 @@ int markovsigmoidsource(t_modelstate *modelstate, t_rngstate* rngstate)
     modelstate->averageentropy = (modelstate->averageentropy) + (delta/(modelstate->n));
 
     if (modelstate->using_jfile == 1) {
-        fprintf(modelstate->jfile,"%0.6f\n",entropy);
+        //fprintf(modelstate->jfile,"%0.6f\n",entropy);
+        fprintf(modelstate->jfile,"%0.6f\n",maxp);
     }
     return(result);
 }
