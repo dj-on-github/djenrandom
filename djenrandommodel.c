@@ -428,6 +428,120 @@ int puresource(t_modelstate* modelstate, t_rngstate* rngstate)
     return(result);
 }
 
+int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
+    // 1. Start with puncturing_start bits of random data
+    // 2. Then puncturing_length bits of injected data
+    // 3. Then puncturing_gap bits of random data
+    // 4. goto 2.
+
+    int result;
+    unsigned long int theint;
+    double entropy;
+    
+    if (modelstate->punc_state == PUNC_STATE_STARTING) {
+        /* get a uniform Random number.              */
+        /* put the random bits into a long int        */
+
+        theint = getrand16(rngstate);
+
+        if (theint > 32767) result = 1;
+        else result = 0;
+
+        modelstate->averageentropy = 1.0;
+        modelstate->n = (modelstate->n)+1;
+
+        if (modelstate->using_jfile ==1) {
+            entropy = 1.0;
+            fprintf(modelstate->jfile,"%0.6f\n",entropy);
+        }
+
+    } else if (modelstate->punc_state == PUNC_STATE_GAPPING) {
+        /* get a uniform Random number.              */
+        /* put the random bits into a long int        */
+
+        theint = getrand16(rngstate);
+
+        if (theint > 32767) result = 1;
+        else result = 0;
+
+        modelstate->averageentropy = 1.0;
+        modelstate->n = (modelstate->n)+1;
+
+        if (modelstate->using_jfile ==1) {
+            entropy = 1.0;
+            fprintf(modelstate->jfile,"%0.6f\n",entropy);
+        }
+
+    } else if (modelstate->punc_state == PUNC_STATE_INJECTING) {
+        if (modelstate->puncturing_level == PUNCTURING_LEVEL_LOW) {
+            result = 0;
+        } else if (modelstate->puncturing_level == PUNCTURING_LEVEL_HIGH) {
+            result = 1;
+        } else if (modelstate->puncturing_level == PUNCTURING_LEVEL_BOTH) {
+            return modelstate->punc_both_level;
+        } else {
+            fprintf(stderr,"ERROR : puncturing_level=%d, it should be 0, 1 or 2\n",modelstate->puncturing_level);
+            result = 0;
+            exit(1);
+        }
+    } else {
+        fprintf(stderr,"ERROR : puncturing_state=%d, it should be 0, 1 or 2\n",modelstate->punc_state);
+        result = 0;
+        exit(1);
+        
+    }
+    
+    // Process the statemachine
+
+
+    if (modelstate->punc_state == PUNC_STATE_STARTING) {
+        if (modelstate->punc_counter >= (modelstate->puncturing_start-1)) {
+            modelstate->punc_counter = 0;
+            modelstate->punc_state = PUNC_STATE_INJECTING;
+            //if (verbose_mode) fprintf(stderr,"\nSTARTING --> INJECTING\n");
+            // update the level for the injected data if randomized
+            if (modelstate->puncturing_level == PUNCTURING_LEVEL_BOTH) {
+                theint = getrand16(rngstate) & 1;
+                modelstate->punc_both_level = theint;
+            }
+        } else {
+            //fprintf(stderr,"STARTING #%d = %d\n", modelstate->punc_counter, result); 
+            modelstate->punc_counter++;
+        }
+
+
+    } else if (modelstate->punc_state == PUNC_STATE_INJECTING) {
+        if (verbose_mode && modelstate->punc_counter % 10 == 0) fprintf(stderr,"INJECTING count %d\n",modelstate->punc_counter);
+        if (modelstate->punc_counter >= (modelstate->puncturing_length-1)) {
+            //if (verbose_mode) fprintf(stderr,"\nINJECTING --> GAPPING\n");
+            modelstate->punc_counter = 0;
+            modelstate->punc_state = PUNC_STATE_GAPPING;
+        } else {
+            //fprintf(stderr,"INJECTING #%d = %d\n", modelstate->punc_counter, result); 
+            modelstate->punc_counter++;
+        }
+
+
+    } else if (modelstate->punc_state == PUNC_STATE_GAPPING) {
+        if (verbose_mode && modelstate->punc_counter % 10 == 0) fprintf(stderr,"GAPPING count %d\n",modelstate->punc_counter);
+        if (modelstate->punc_counter >= (modelstate->puncturing_gap-1)) {
+            if (verbose_mode) fprintf(stderr,"\nGAPPING --> INJECTING\n");
+            modelstate->punc_counter = 0;
+            modelstate->punc_state = PUNC_STATE_INJECTING;
+
+            // update the level for the injected data if randomized
+            if (modelstate->puncturing_level == PUNCTURING_LEVEL_BOTH) {
+                theint = getrand16(rngstate) & 1;
+                modelstate->punc_both_level = theint;
+            }
+        } else {
+            //fprintf(stderr,"GAPPING #%d = %d\n", modelstate->punc_counter, result); 
+            modelstate->punc_counter++;
+        }
+    }
+    return result;
+}
+
 int biasedsource(t_modelstate* modelstate, t_rngstate* rngstate)
 {
     int result;
@@ -1319,6 +1433,20 @@ void pureinit(t_modelstate* modelstate, t_rngstate* rngstate)
     }
 
 }
+void puncturinginit(t_modelstate* modelstate, t_rngstate* rngstate) {
+    pureinit(modelstate,rngstate); // set up the generator for the random parts
+
+    // Start the counter for the current block at 0
+    modelstate->punc_counter = 0;
+    modelstate->punc_both_level = 0;
+
+    // If start is 0, then we start injecting immediately.
+    // Otherwise we send out random data for start bits and then start injecting
+    if (modelstate->puncturing_start == 0) modelstate->punc_state=PUNC_STATE_INJECTING;
+    if (modelstate->puncturing_start > 0)  modelstate->punc_state=PUNC_STATE_STARTING;
+
+}
+
 void biasedinit(t_modelstate *modelstate, t_rngstate *rngstate)
 {
     unsigned char out[16];

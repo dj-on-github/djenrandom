@@ -37,6 +37,20 @@
 #define CURVE_ERF       6
 #define CURVE_AGEBRAIC  7
 
+#define PUNCTURING_LEVEL_LOW  0
+#define PUNCTURING_LEVEL_HIGH 1
+#define PUNCTURING_LEVEL_BOTH 2
+
+#define PUNC_STATE_STARTING  0
+#define PUNC_STATE_GAPPING   1
+#define PUNC_STATE_INJECTING 2
+
+#define PCG_LCG 1
+#define PCG_MCG 2
+
+#define XSH_RS 1
+#define XSH_RR 2
+
 typedef struct {
         double t;
         int lastbit;
@@ -118,7 +132,18 @@ typedef struct {
         uint32_t xorshift_state_b;
         uint32_t xorshift_state_c;
         uint32_t xorshift_state_d;
-        
+       
+        /* Punctured States */
+
+        uint32_t puncturing_level;
+        uint32_t puncturing_length;
+        uint32_t puncturing_start;
+        uint32_t puncturing_gap;
+        uint32_t punc_state;
+        uint32_t punc_counter;
+        uint32_t punc_both_level;
+
+        /* General states */
         int using_stepnoise;
         double stepnoise;
         int using_jfile;
@@ -172,6 +197,7 @@ uint64_t choose_exponent(uint64_t start, t_rngstate* rngstate);
 /* v is the current CTR vector for the simulation RNG     */
 /* It returns the next state for j */
 int smoothsource(     t_modelstate* modelstate, t_rngstate* rngstate);
+int puncturingsource(     t_modelstate* modelstate, t_rngstate* rngstate);
 int puresource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int biasedsource(     t_modelstate *modelstate, t_rngstate* rngstate);
 int correlatedsource( t_modelstate *modelstate, t_rngstate* rngstate);
@@ -194,6 +220,7 @@ double normalsource(t_modelstate *modelstate, t_rngstate* rngstate);
 /* different path for each value of seed.                         */
 /* pass k,v and seed as pointers to unsigned char.                */
 void smoothinit(     t_modelstate* modelstate, t_rngstate* rngstate);
+void puncturinginit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void pureinit(       t_modelstate* modelstate, t_rngstate* rngstate);
 void biasedinit(     t_modelstate* modelstate, t_rngstate* rngstate);
 void correlatedinit( t_modelstate* modelstate, t_rngstate* rngstate);
@@ -206,12 +233,5 @@ void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
 void xorshiftinit(   t_modelstate* modelstate, t_rngstate* rngstate);
 void normalinit(     t_modelstate *modelstate, t_rngstate* rngstate);
 void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
-
-#define PCG_LCG 1
-#define PCG_MCG 2
-
-#define XSH_RS 1
-#define XSH_RR 2
-
 
 

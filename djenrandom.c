@@ -51,6 +51,7 @@
 #define MODEL_SINBIAS 9
 #define MODEL_MARKOV2P 10
 #define MODEL_MARKOV_SIGMOID 11
+#define MODEL_PUNCTURING 12
                     
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
@@ -70,7 +71,7 @@ int verbose_mode;
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
-fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|file>] [-l <left_stepsize>]\n"); 
+fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|puncturing|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
@@ -150,6 +151,12 @@ fprintf(stderr,"  --pcg_of=<Output Function>            XSH_RS or XSH_RR\n");
 fprintf(stderr,"\nXorShift model (-m xorshift) Options\n\n");
 fprintf(stderr,"  --xorshift_size=[state size of xorshift]  32 or 128\n");
 
+fprintf(stderr,"\nPuncturing model (-m puncturing) Options\n\n");
+fprintf(stderr,"  --puncturing_start=[bit position to start injecting constant data]\n");
+fprintf(stderr,"  --puncturing_length=[length in bits of injected data]\n");
+fprintf(stderr,"  --puncturing_level=[value to inject] 0, 1 or 2=randomize between high or low\n");
+fprintf(stderr,"  --puncturing_gap=[length in bits of the gap between injection points]\n");
+
 fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
 fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range of XOR ratios\n");
@@ -178,6 +185,7 @@ fprintf(stderr,"  -k, --blocks=<1K_Blocks>         Size of output in kilobytes\n
 
 fprintf(stderr,"\nOutput Format Options\n\n");
 fprintf(stderr,"  -b, --binary                output in raw binary format\n");
+fprintf(stderr,"  --nistoddball               output in nistoddball format, 1 bit per byte\n");
 fprintf(stderr,"  --bpb                       Number of bits per byte to output in binary output mode.\n");
 fprintf(stderr,"                              Default 8 bits.\n");
 fprintf(stderr,"  -w, --width=[1...256]       Byte per line of output\n");
@@ -287,6 +295,11 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
         result = puresource(modelstate, rngstate);
         return result;
     }
+    else if (model==MODEL_PUNCTURING)
+    {
+        result = puncturingsource(modelstate, rngstate);
+        return result;
+    }
     else if (model==MODEL_BIASED)
     {
         result = biasedsource(modelstate, rngstate);
@@ -356,6 +369,10 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
     {
         pureinit(modelstate, rngstate);
     }
+    else if (model==MODEL_PUNCTURING)
+    {
+        puncturinginit(modelstate, rngstate);
+    }
     else if (model==MODEL_BIASED)
     {
         biasedinit(modelstate, rngstate);
@@ -417,7 +434,7 @@ int main(int argc, char** argv)
     int xor4bit;
     int xor11bit;
     int downsample;
-    int inputbits;
+    //int inputbits;
     int shiftreg;
     int newbit;
     int xoriter;
@@ -426,6 +443,8 @@ int main(int argc, char** argv)
     int thebit;
     unsigned char thebyte;
     int binary_mode;
+    int hex_mode;
+    int nistoddball_mode;
     int bits_per_byte;
     int xormode;
     int xorbits;
@@ -479,7 +498,11 @@ int main(int argc, char** argv)
     xor11bit = 0;    // 0=Do not use the 11 bit xor decorrelator, 1 = do.
     downsample = 0;    // 0=Do not use the downsampler of the decorellator, 1 = do.
     shiftreg = 0;  // Preset the decorrelator shiftregister to 0.
-    binary_mode = 0; /* binary when 1, hex when 0 */
+    
+    binary_mode = 0; /* binary when 1 */
+    nistoddball_mode = 0;
+    hex_mode = 1;
+
     bits_per_byte = 8; /* default 8 bits per byte */
     ofile = 0;       /* use stdout instead of outputfile*/
     model = MODEL_PURE;
@@ -553,6 +576,12 @@ int main(int argc, char** argv)
     modelstate.min_range=-1.0;
     modelstate.max_range=1.0;
     modelstate.xorshift_size=32;
+
+    modelstate.puncturing_level = PUNCTURING_LEVEL_LOW;
+    modelstate.puncturing_start = 0;      // start injecting on first bit
+    modelstate.puncturing_length = 167;   // ceil(100/H) , H=0.6
+    modelstate.puncturing_gap = 1024-167; // Inject 167 bits every 1024 bits
+
     //sums_entropy = 0.0;
     postxor_entropy = 0.0;
     total_entropy = 0.0;
@@ -601,6 +630,8 @@ int main(int argc, char** argv)
     char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:D:bxsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
+    { "nistoddball", no_argument, NULL, 0 },
+    { "hex", no_argument, NULL, 0 },
     { "p01", required_argument, NULL, 0 },
     { "p10", required_argument, NULL, 0 },
     { "bitwidth", required_argument, NULL, 0 },
@@ -632,7 +663,12 @@ int main(int argc, char** argv)
     { "sigmoid", required_argument, NULL, 0 },
     { "min_range", required_argument, NULL, 0 },
     { "max_range", required_argument, NULL, 0 },
-            
+           
+    { "puncturing_start", required_argument, NULL, 0},
+    { "puncturing_length", required_argument, NULL, 0},
+    { "puncturing_gap", required_argument, NULL, 0},
+    { "puncturing_level", required_argument, NULL, 0},
+    
     { "lcg_a", required_argument, NULL, 0 },
     { "lcg_c", required_argument, NULL, 0 },
     { "lcg_m", required_argument, NULL, 0 },
@@ -685,6 +721,8 @@ int main(int argc, char** argv)
         switch( opt ) {
             case 'b':
                 binary_mode = 1;
+                hex_mode = 0;
+                nistoddball_mode = 0;
                 break;
                 
             case 'x':
@@ -781,6 +819,7 @@ int main(int argc, char** argv)
             case 'm':
                 if (strcmp(optarg,"sums")==0) model=MODEL_SUMS;
                 else if (strcmp(optarg,"pure")==0) model=MODEL_PURE;
+                else if (strcmp(optarg,"puncturing")==0) model=MODEL_PUNCTURING;
                 else if (strcmp(optarg,"biased")==0) model=MODEL_BIASED;
                 else if (strcmp(optarg,"correlated")==0) model=MODEL_CORRELATED;
                 else if (strcmp(optarg,"markov_2_param")==0) model=MODEL_MARKOV2P;
@@ -793,7 +832,7 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
                 {
-                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, biased, correlated, markov_2_param, markov_sigmoid, normal or file.\n",optarg);
+                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, puncturing, biased, correlated, markov_2_param, markov_sigmoid, normal or file.\n",optarg);
                     exit(1);
                 }
                 break; 
@@ -820,6 +859,33 @@ int main(int argc, char** argv)
                
             case 0:     /* long option without a short arg */
                 //fprintf(stderr," LONGOPT = %s\n",longOpts[longIndex].name);
+                if( strcmp( "hex", longOpts[longIndex].name ) == 0 ) {
+                    hex_mode = 1;
+                    binary_mode = 0;
+                    nistoddball_mode = 0;
+                }
+                if( strcmp( "binary", longOpts[longIndex].name ) == 0 ) {
+                    hex_mode = 0;
+                    binary_mode = 1;
+                    nistoddball_mode = 0;
+                }
+                if( strcmp( "puncturing_start", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.puncturing_start = atoi(optarg);
+                }
+                if( strcmp( "puncturing_length", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.puncturing_length = atoi(optarg);
+                }
+                if( strcmp( "puncturing_gap", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.puncturing_gap = atoi(optarg);
+                }
+                if( strcmp( "puncturing_level", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.puncturing_level = atoi(optarg);
+                }
+                if( strcmp( "nistoddball", longOpts[longIndex].name ) == 0 ) {
+                    hex_mode = 0;
+                    binary_mode = 0;
+                    nistoddball_mode = 1;
+                }
                 if( strcmp( "bpb", longOpts[longIndex].name ) == 0 ) {
                     bits_per_byte = atoi(optarg);
                 }
@@ -1228,10 +1294,12 @@ int main(int argc, char** argv)
         else
             fprintf(stderr,"AESNI Not supported in instruction set\n");
  
-        if (binary_mode == 0)
+        if (hex_mode == 1)
             fprintf(stderr,"Format=Hex\n");
-        else
+        else if (binary_mode == 1)
             fprintf(stderr,"Format=Binary\n");
+        else if (nistoddball_mode == 1)
+            fprintf(stderr,"Format=Nist Oddball");
 
         if (model == MODEL_SUMS)
         {
@@ -1245,7 +1313,21 @@ int main(int argc, char** argv)
             else
                 fprintf(stderr,"  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
         }
-
+        if (model == MODEL_PUNCTURING)
+        {
+            fprintf(stderr,"model=puncturing\n");
+            if (modelstate.puncturing_level == PUNCTURING_LEVEL_LOW) {
+                fprintf(stderr,"  level  = zeroes\n");
+            } else if (modelstate.puncturing_level == PUNCTURING_LEVEL_HIGH) {
+                fprintf(stderr,"  level  = ones\n");
+            } else if (modelstate.puncturing_level == PUNCTURING_LEVEL_BOTH) {
+                fprintf(stderr,"  level  = zeroes or ones randomly\n");
+            }
+            
+            fprintf(stderr,"  start bit position         = %d/n", modelstate.puncturing_start);
+            fprintf(stderr,"  length of injected string  = %d/n", modelstate.puncturing_length);
+            fprintf(stderr,"  gap between injections     = %d/n", modelstate.puncturing_gap);
+        }
         if (model == MODEL_PURE)
         {
             fprintf(stderr,"model=pure\n");
@@ -1471,7 +1553,7 @@ int main(int argc, char** argv)
 
     /* entropy = 0x00;*/
     /* Pull some bits to let it settle. */
-    if (!((model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
+    if (!((model==MODEL_PURE) || (model==MODEL_PUNCTURING) || (model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
     for(i=0; i<128; i++)
     {
         thebit = entropysource(model, &modelstate, &rngstate);
@@ -1522,7 +1604,7 @@ int main(int argc, char** argv)
 
         }
     }
-    else /* model = sums, pure, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
+    else /* model = sums, pure, puncturing, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
     {
         lineindex = 0;
         
@@ -1574,12 +1656,13 @@ int main(int argc, char** argv)
                         thebyte = (thebyte << 4) | (shiftreg & 0xf);
                     } else if (downsample==1) {
                         // The first 4 bits of the byte
-                        inputbits = 0;
+                        //inputbits = 0;
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
                             modelstate.lastbit = newbit;
                             //inputbits = (inputbits << 1) | (newbit & 0x1);
-                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
+                            shiftreg = ((newbit & 0x1) | ((shiftreg<<1) & 0x0e)); // new bit to bit 3. bits 3-1 shifted to 2-0.
+                            
                             //shiftreg = ((newbit<<3) | ((shiftreg>>1) & 0x7)); // new bit to bit 3. bits 3-1 shifted to 2-0. 
                         }
                         thebyte = (shiftreg & 0xf);
@@ -1587,7 +1670,7 @@ int main(int argc, char** argv)
                         //fprintf(stderr, " Returned %x.\n",thebyte);
                         
                         // The second 4 bits of the byte
-                        inputbits = 0;
+                        //inputbits = 0;
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
                             modelstate.lastbit = newbit;
@@ -1671,11 +1754,13 @@ int main(int argc, char** argv)
 
                             if ((thebit & 0x01)==1)
                             {
+                                //fprintf(stderr,"RETURNED BIT = 1\n");
                                 //thebyte = ((thebyte >> 1) & 0x7f) | 0x80;
                                 thebyte = (thebyte << 1) | 0x01;
                             }
                             else
                             {
+                                //fprintf(stderr,"RETURNED BIT = 0\n");
                                 //thebyte = ((thebyte >> 1) & 0x7f);
                                 thebyte = (thebyte << 1) & 0xfe;
                             }
