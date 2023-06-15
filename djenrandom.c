@@ -68,6 +68,13 @@
 
 int aesni_supported;
 int verbose_mode;
+int puncture_count=0;
+int puncture=0;
+int puncture_state = PUNC_STATE_STARTING;
+int reset_shiftreg = 1;  // reset xor feedback shiftregister every 512 bits
+
+int puncture_this_bit(t_modelstate* modelstate);
+
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
@@ -151,7 +158,8 @@ fprintf(stderr,"  --pcg_of=<Output Function>            XSH_RS or XSH_RR\n");
 fprintf(stderr,"\nXorShift model (-m xorshift) Options\n\n");
 fprintf(stderr,"  --xorshift_size=[state size of xorshift]  32 or 128\n");
 
-fprintf(stderr,"\nPuncturing model (-m puncturing) Options\n\n");
+fprintf(stderr,"\nPuncturing model (-m puncturing) or other models (--puncture) Options\n\n");
+fprintf(stderr,"  Applies to uniform data with -m puncturing or any other model with --puncture\n");
 fprintf(stderr,"  --puncturing_start=[bit position to start injecting constant data]\n");
 fprintf(stderr,"  --puncturing_length=[length in bits of injected data]\n");
 fprintf(stderr,"  --puncturing_level=[value to inject] 0, 1 or 2=randomize between high or low\n");
@@ -163,6 +171,9 @@ fprintf(stderr,"  -y, --xmin=<bits>              Provides the start of a range o
 fprintf(stderr,"                                 to be chosen at random per sample\n");
 fprintf(stderr,"  -z, --xmax=<bits>              Provides the end of a range of XOR ratios to be\n");
 fprintf(stderr,"                                 chosen at random per sample\n");
+fprintf(stderr,"  --xor4                         Enable 4 bit xor feedback digitizer\n");
+fprintf(stderr,"  --xor11                        Enable 11 bit xor feedback digitizer\n");
+fprintf(stderr,"  --noresetxor                   xor feedback is reset every 512 bits. This disabled that.\n");
 fprintf(stderr,"  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random\n");
 fprintf(stderr,"  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string\n");
 fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
@@ -288,17 +299,14 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
     if (model==MODEL_SUMS)
     {
         result = smoothsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_PURE)
     {
         result = puresource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_PUNCTURING)
     {
         result = puncturingsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_BIASED)
     {
@@ -308,42 +316,34 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
     else if (model==MODEL_CORRELATED)
     {
         result = correlatedsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_MARKOV2P)
     {
         if (modelstate->fast_m2p==1) {
             result = markov2pfastsource(modelstate, rngstate);
-            return result;
         } else {
             result = markov2psource(modelstate, rngstate);
-            return result;
         }
     }
     else if (model==MODEL_MARKOV_SIGMOID)
     {
         result = markovsigmoidsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_SINBIAS)
     {
         result = sinbiassource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_LCG)
     {
         result = lcgsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_PCG)
     {
         result = pcgsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_XORSHIFT)
     {
         result = xorshiftsource(modelstate, rngstate);
-        return result;
     }
     else if (model==MODEL_FILE)
     {
@@ -353,10 +353,62 @@ int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
             result = filesource(modelstate,rngstate);
         else
             result = filesourcebinary(modelstate, rngstate);
-        
-        return result;
     }
-    else return 0;
+    else {
+        result = 0;
+    }
+    
+    // Apply the puncturing
+
+    if (puncture==1) {
+        if (puncture_this_bit(modelstate) == 1){
+            if (modelstate->puncturing_level==0) result = 0;
+            if (modelstate->puncturing_level==1) result = 1;
+            if (modelstate->puncturing_level==2) result = 0; // TBD have not implemented this yet
+        }
+    }
+
+    return result;
+}
+
+int puncture_this_bit(t_modelstate* modelstate) {
+    if (puncture_state == PUNC_STATE_STARTING) {
+        if (puncture_count < (modelstate->puncturing_start-1)) {
+            puncture_count++;
+            //fprintf(stderr,"STARTING %d, start=%d\n",puncture_count,(modelstate->puncturing_start-1));
+            return 0;
+        } else {
+            puncture_state = PUNC_STATE_INJECTING;
+            puncture_count=0;
+            return 0;
+        }
+    } else if (puncture_state == PUNC_STATE_INJECTING) {
+        if (puncture_count < (modelstate->puncturing_length-1)) {
+            puncture_count++;
+            //fprintf(stderr,"INJECTING %d\n",puncture_count);
+            return 1;
+        } else {
+            puncture_state = PUNC_STATE_GAPPING;
+            puncture_count=0;
+            return 1;
+        }
+        
+    } else if (puncture_state == PUNC_STATE_GAPPING) {
+        if (puncture_count < (modelstate->puncturing_gap-1)) {
+            puncture_count++;
+            //fprintf(stderr,"GAPPING %d\n",puncture_count);
+            return 0;
+        } else {
+            puncture_state = PUNC_STATE_INJECTING;
+            puncture_count=0;
+            return 0;
+        }
+    } else {
+        fprintf(stderr,"ERROR : puncture_state wrong %d\n",puncture_state);
+        exit(1);
+        return 0;
+    }
+
 }
 
 void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
@@ -432,6 +484,7 @@ int main(int argc, char** argv)
     int onek;
     int tempindex;
     int xor4bit;
+    int xorcount;
     int xor11bit;
     int downsample;
     //int inputbits;
@@ -495,10 +548,12 @@ int main(int argc, char** argv)
     
     /* Defaults */
     xor4bit = 0;    // 0=Do not use the 4 bit xor decorrelator, 1 = do.
+    xorcount = 0;
     xor11bit = 0;    // 0=Do not use the 11 bit xor decorrelator, 1 = do.
     downsample = 0;    // 0=Do not use the downsampler of the decorellator, 1 = do.
     shiftreg = 0;  // Preset the decorrelator shiftregister to 0.
-    
+    puncture = 0; // Default to not puncture the source data
+
     binary_mode = 0; /* binary when 1 */
     nistoddball_mode = 0;
     hex_mode = 1;
@@ -580,7 +635,7 @@ int main(int argc, char** argv)
     modelstate.puncturing_level = PUNCTURING_LEVEL_LOW;
     modelstate.puncturing_start = 0;      // start injecting on first bit
     modelstate.puncturing_length = 167;   // ceil(100/H) , H=0.6
-    modelstate.puncturing_gap = 1024-167; // Inject 167 bits every 1024 bits
+    modelstate.puncturing_gap = 1024-modelstate.puncturing_length; // Inject 167 bits every 1024 bits
 
     //sums_entropy = 0.0;
     postxor_entropy = 0.0;
@@ -627,7 +682,7 @@ int main(int argc, char** argv)
 
     gotxmin = 0;
     gotxmax = 0;
-    char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:D:bxsnvh";
+    char optString[] = "c:m:l:r:B:C:o:j:J:Y:i:f:k:V:w:D:bxpsnvh";
     static const struct option longOpts[] = {
     { "binary", no_argument, NULL, 'b' },
     { "nistoddball", no_argument, NULL, 0 },
@@ -664,6 +719,7 @@ int main(int argc, char** argv)
     { "min_range", required_argument, NULL, 0 },
     { "max_range", required_argument, NULL, 0 },
            
+    { "puncture", no_argument, NULL, 'p' },
     { "puncturing_start", required_argument, NULL, 0},
     { "puncturing_length", required_argument, NULL, 0},
     { "puncturing_gap", required_argument, NULL, 0},
@@ -855,6 +911,10 @@ int main(int argc, char** argv)
                     //else if (width == 128) linewidth=16;
                     //else if (width == 256) linewidth=32;
                 }
+                break;
+            case 'p':
+                //fprintf(stderr,"SETTING puncture=1 from options\n");
+                puncture = 1;
                 break;                
                
             case 0:     /* long option without a short arg */
@@ -871,6 +931,7 @@ int main(int argc, char** argv)
                 }
                 if( strcmp( "puncturing_start", longOpts[longIndex].name ) == 0 ) {
                     modelstate.puncturing_start = atoi(optarg);
+                    if (modelstate.puncturing_start == 0) puncture_state = PUNC_STATE_INJECTING;
                 }
                 if( strcmp( "puncturing_length", longOpts[longIndex].name ) == 0 ) {
                     modelstate.puncturing_length = atoi(optarg);
@@ -1090,8 +1151,35 @@ int main(int argc, char** argv)
     init_rng(&rngstate);
     
     /* Range check the var args */
-
     abort = 0;
+
+    if ((puncture==1) || (model==MODEL_PUNCTURING)) {
+        if (modelstate.puncturing_start < 0) {
+            fprintf(stderr,"Error: puncturing_start cannot be negative\n");
+            abort = 1;
+        }
+
+        if (modelstate.puncturing_length < 1) {
+            fprintf(stderr,"Error: puncturing_length must be positive and greater than 0\n");
+            abort = 1;
+        }
+
+        if (modelstate.puncturing_gap < 0) {
+            fprintf(stderr,"Error: puncturing_gap must be positive and greater than 0\n");
+            abort = 1;
+        }
+
+        if (modelstate.puncturing_level < 0) {
+            fprintf(stderr,"Error: puncturing_level must be 0 (low), 1 (high) or 2 (randomized)\n");
+            abort = 1;
+        }
+
+        if (model == MODEL_NORMAL) {
+            fprintf(stderr,"Error: puncturing (--puncture) cannot be used with the normal model (-m MODEL_NORMAL)\n");
+            abort = 1;
+        }
+    }
+
     if (using_xor_range == 1)
     {
         if (gotxmin != gotxmax)
@@ -1136,6 +1224,7 @@ int main(int argc, char** argv)
     if (rngstate.c_max < 1)
     {
             fprintf(stderr,"Error: -c n: cmax must be an integer of 1 or greater. Supplied value = %d\n",rngstate.c_max);
+        
             abort=1;
     }
 
@@ -1313,9 +1402,10 @@ int main(int argc, char** argv)
             else
                 fprintf(stderr,"  Adding noise of variance %f to stepsize\n",modelstate.stepnoise);
         }
-        if (model == MODEL_PUNCTURING)
+        if ((model == MODEL_PUNCTURING) || (puncture == 1))
         {
-            fprintf(stderr,"model=puncturing\n");
+            if (puncture == 1) fprintf(stderr,"Puncturing enabled\n");
+            else fprintf(stderr,"model=puncturing\n");
             if (modelstate.puncturing_level == PUNCTURING_LEVEL_LOW) {
                 fprintf(stderr,"  level  = zeroes\n");
             } else if (modelstate.puncturing_level == PUNCTURING_LEVEL_HIGH) {
@@ -1324,9 +1414,9 @@ int main(int argc, char** argv)
                 fprintf(stderr,"  level  = zeroes or ones randomly\n");
             }
             
-            fprintf(stderr,"  start bit position         = %d/n", modelstate.puncturing_start);
-            fprintf(stderr,"  length of injected string  = %d/n", modelstate.puncturing_length);
-            fprintf(stderr,"  gap between injections     = %d/n", modelstate.puncturing_gap);
+            fprintf(stderr,"  start bit position         = %d\n", modelstate.puncturing_start);
+            fprintf(stderr,"  length of injected string  = %d\n", modelstate.puncturing_length);
+            fprintf(stderr,"  gap between injections     = %d\n", modelstate.puncturing_gap);
         }
         if (model == MODEL_PURE)
         {
@@ -1552,8 +1642,8 @@ int main(int argc, char** argv)
     /* And do it 4 times */
 
     /* entropy = 0x00;*/
-    /* Pull some bits to let it settle. */
-    if (!((model==MODEL_PURE) || (model==MODEL_PUNCTURING) || (model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG)))
+    /* Pull some bits to let it settle. But not in the following modes since there is not settling time needed */
+    if (!((model==MODEL_PURE) || (model==MODEL_PUNCTURING) || (model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG) || (model==MODEL_MARKOV2P) || (model==MODEL_MARKOV_SIGMOID)))
     for(i=0; i<128; i++)
     {
         thebit = entropysource(model, &modelstate, &rngstate);
@@ -1614,9 +1704,22 @@ int main(int argc, char** argv)
             {
                 for(samplenum=0;samplenum<256;samplenum++) {
                     thebyte = (unsigned char)0x00;
+                    
+                    // Reset the shift register when OSTE buffers fill.
+                    if ((xorcount*8) >= 512) {
+                        xorcount = 0;
+                        shiftreg = 0;
+                    }
+                    xorcount++;
 
                     /* Pull 8 bits */
                     if (xor4bit==1) {
+                        // Every 512 bits, clear the shiftregister.
+                        // This models the point where the OSTE registers have been
+                        // consumed by the conditioner and the conditioner is busy
+                        // So the ES is paused and reset.
+
+                        
                         // The first 4 bits of the byte
                         for (xoriter=0; xoriter < 16; xoriter++) {
                             newbit = entropysource(model, &modelstate, &rngstate);
