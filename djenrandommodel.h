@@ -44,6 +44,7 @@
 #define PUNC_STATE_STARTING  0
 #define PUNC_STATE_GAPPING   1
 #define PUNC_STATE_INJECTING 2
+#define PUNC_STATE_FINISHED  3
 
 #define PCG_LCG 1
 #define PCG_MCG 2
@@ -142,6 +143,9 @@ typedef struct {
         uint32_t punc_state;
         uint32_t punc_counter;
         uint32_t punc_both_level;
+        uint32_t punc_event_count;
+        uint32_t punc_event_limit;
+        uint32_t punc_event_dis;
 
         /* General states */
         int using_stepnoise;

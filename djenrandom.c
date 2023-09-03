@@ -60,7 +60,7 @@
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
-#define KYEL  "\x1B[33m"
+#define KYEL  "\x1B[33m"    
 #define KBLU  "\x1B[34m"
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
@@ -164,6 +164,7 @@ fprintf(stderr,"  --puncturing_start=[bit position to start injecting constant d
 fprintf(stderr,"  --puncturing_length=[length in bits of injected data]\n");
 fprintf(stderr,"  --puncturing_level=[value to inject] 0, 1 or 2=randomize between high or low\n");
 fprintf(stderr,"  --puncturing_gap=[length in bits of the gap between injection points]\n");
+fprintf(stderr,"  --puncturing_limit=[Maximum number of puncturing events to perform. 0 for no limit.]\n");
 
 fprintf(stderr,"\nGeneral Options\n\n");
 fprintf(stderr,"  -x, --xor=<bits>               XOR 'bits' of entropy together for each output bit\n");
@@ -378,6 +379,7 @@ int puncture_this_bit(t_modelstate* modelstate) {
             //fprintf(stderr,"STARTING %d, start=%d\n",puncture_count,(modelstate->puncturing_start-1));
             return 0;
         } else {
+            modelstate->punc_event_count = 0;
             puncture_state = PUNC_STATE_INJECTING;
             puncture_count=0;
             return 0;
@@ -388,6 +390,7 @@ int puncture_this_bit(t_modelstate* modelstate) {
             //fprintf(stderr,"INJECTING %d\n",puncture_count);
             return 1;
         } else {
+            modelstate->punc_event_count++;
             puncture_state = PUNC_STATE_GAPPING;
             puncture_count=0;
             return 1;
@@ -398,11 +401,17 @@ int puncture_this_bit(t_modelstate* modelstate) {
             puncture_count++;
             //fprintf(stderr,"GAPPING %d\n",puncture_count);
             return 0;
-        } else {
+        } else if ((modelstate->punc_event_count < modelstate->punc_event_limit) || (modelstate->punc_event_dis==1)) {
             puncture_state = PUNC_STATE_INJECTING;
             puncture_count=0;
             return 0;
+        } else {
+            puncture_state = PUNC_STATE_FINISHED;
+            return 0;
         }
+    } else if (puncture_state == PUNC_STATE_FINISHED) {
+        puncture_state = PUNC_STATE_FINISHED;
+        return 0;
     } else {
         fprintf(stderr,"ERROR : puncture_state wrong %d\n",puncture_state);
         exit(1);
@@ -487,6 +496,8 @@ int main(int argc, char** argv)
     int xorcount;
     int xor11bit;
     int downsample;
+    int noresetxor=0;
+
     //int inputbits;
     int shiftreg;
     int newbit;
@@ -636,6 +647,9 @@ int main(int argc, char** argv)
     modelstate.puncturing_start = 0;      // start injecting on first bit
     modelstate.puncturing_length = 167;   // ceil(100/H) , H=0.6
     modelstate.puncturing_gap = 1024-modelstate.puncturing_length; // Inject 167 bits every 1024 bits
+    modelstate.punc_event_count = 0;
+    modelstate.punc_event_limit = 0;
+    modelstate.punc_event_dis = 1;
 
     //sums_entropy = 0.0;
     postxor_entropy = 0.0;
@@ -696,6 +710,7 @@ int main(int argc, char** argv)
     { "xor4bit", no_argument, NULL, 0 },
     { "xor11bit", no_argument, NULL, 0 },
     { "downsample", no_argument, NULL, 0 },
+    { "noresetxor", no_argument, NULL, 0 },
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
@@ -724,6 +739,7 @@ int main(int argc, char** argv)
     { "puncturing_length", required_argument, NULL, 0},
     { "puncturing_gap", required_argument, NULL, 0},
     { "puncturing_level", required_argument, NULL, 0},
+    { "puncturing_event_count", required_argument, NULL, 0},
     
     { "lcg_a", required_argument, NULL, 0 },
     { "lcg_c", required_argument, NULL, 0 },
@@ -942,6 +958,9 @@ int main(int argc, char** argv)
                 if( strcmp( "puncturing_level", longOpts[longIndex].name ) == 0 ) {
                     modelstate.puncturing_level = atoi(optarg);
                 }
+                if( strcmp( "puncturing_event_count", longOpts[longIndex].name ) == 0 ) {
+                    modelstate.punc_event_limit = atoi(optarg);
+                }
                 if( strcmp( "nistoddball", longOpts[longIndex].name ) == 0 ) {
                     hex_mode = 0;
                     binary_mode = 0;
@@ -961,6 +980,10 @@ int main(int argc, char** argv)
 
                 if( strcmp( "downsample", longOpts[longIndex].name ) == 0 ) {
                     downsample = 1;
+                }
+
+                if ( strcmp( "noresetxor", longOpts[longIndex].name ) == 0 ) {
+                    noresetxor = 1;
                 }
 
                 if( strcmp( "xmin", longOpts[longIndex].name ) == 0 ) {
@@ -1152,6 +1175,10 @@ int main(int argc, char** argv)
     
     /* Range check the var args */
     abort = 0;
+
+    
+    modelstate.punc_event_dis=0;
+    if (modelstate.punc_event_limit==0) modelstate.punc_event_dis=1;
 
     if ((puncture==1) || (model==MODEL_PUNCTURING)) {
         if (modelstate.puncturing_start < 0) {
@@ -1435,25 +1462,23 @@ int main(int argc, char** argv)
             fprintf(stderr,"  correlation  = %f\n",modelstate.correlation);
         }
 
-        if (model == MODEL_MARKOV2P)
-        {
-            //double entropy;
-            //double lmcv_prob;
-            //uint64_t lmcv;
-
-            //entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
-            /*
-            fprintf(stderr,"model=markov_2_param\n");
-            fprintf(stderr,"  bias            = %f\n",modelstate.bias);
-            fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
-            fprintf(stderr,"  p01             = %f\n",modelstate.p01);
-            fprintf(stderr,"  p10             = %f\n",modelstate.p10);
-            fprintf(stderr,"  entropy         = %f\n",entropy);
-            fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
-            fprintf(stderr,"  Bits per symbol = %d\n",modelstate.bitwidth);
-            */
-            
-        }
+        //if (model == MODEL_MARKOV2P)
+        //{
+        //    double entropy;
+        //    double lmcv_prob;
+        //    uint64_t lmcv;
+        //
+        //    entropy = p_to_entropy(modelstate.p01, modelstate.p10,modelstate.bitwidth, &lmcv_prob, &lmcv) ;
+        //    
+        //    fprintf(stderr,"model=markov_2_param\n");
+        //    fprintf(stderr,"  bias            = %f\n",modelstate.bias);
+        //    fprintf(stderr,"  correlation     = %f\n",modelstate.correlation);
+        //    fprintf(stderr,"  p01             = %f\n",modelstate.p01);
+        //    fprintf(stderr,"  p10             = %f\n",modelstate.p10);
+        //    fprintf(stderr,"  entropy         = %f\n",entropy);
+        //    fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
+        //    
+        //}
         if (model == MODEL_MARKOV_SIGMOID)
         {
             fprintf(stderr,"model=markov_sigmoid\n");
@@ -1706,11 +1731,13 @@ int main(int argc, char** argv)
                     thebyte = (unsigned char)0x00;
                     
                     // Reset the shift register when OSTE buffers fill.
-                    if ((xorcount*8) >= 512) {
-                        xorcount = 0;
-                        shiftreg = 0;
+                    if (noresetxor == 0) {
+                        if ((xorcount*8) >= 512) {
+                            xorcount = 0;
+                            shiftreg = 0;
+                        }
+                        xorcount++;
                     }
-                    xorcount++;
 
                     /* Pull 8 bits */
                     if (xor4bit==1) {

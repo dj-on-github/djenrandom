@@ -441,7 +441,6 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
     if (modelstate->punc_state == PUNC_STATE_STARTING) {
         /* get a uniform Random number.              */
         /* put the random bits into a long int        */
-
         theint = getrand16(rngstate);
 
         if (theint > 32767) result = 1;
@@ -475,10 +474,16 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
     } else if (modelstate->punc_state == PUNC_STATE_INJECTING) {
         if (modelstate->puncturing_level == PUNCTURING_LEVEL_LOW) {
             result = 0;
+            modelstate->averageentropy = 0.0;
+            modelstate->n = (modelstate->n)+1;
         } else if (modelstate->puncturing_level == PUNCTURING_LEVEL_HIGH) {
             result = 1;
+            modelstate->averageentropy = 0.0;
+            modelstate->n = (modelstate->n)+1;
         } else if (modelstate->puncturing_level == PUNCTURING_LEVEL_BOTH) {
             return modelstate->punc_both_level;
+            modelstate->averageentropy = 0.0;
+            modelstate->n = (modelstate->n)+1;
         } else {
             fprintf(stderr,"ERROR : puncturing_level=%d, it should be 0, 1 or 2\n",modelstate->puncturing_level);
             result = 0;
@@ -495,6 +500,7 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
 
 
     if (modelstate->punc_state == PUNC_STATE_STARTING) {
+        modelstate->punc_event_count = 0;
         if (modelstate->punc_counter >= (modelstate->puncturing_start-1)) {
             modelstate->punc_counter = 0;
             modelstate->punc_state = PUNC_STATE_INJECTING;
@@ -516,6 +522,7 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
             //if (verbose_mode) fprintf(stderr,"\nINJECTING --> GAPPING\n");
             modelstate->punc_counter = 0;
             modelstate->punc_state = PUNC_STATE_GAPPING;
+            modelstate->punc_event_count++;
         } else {
             //fprintf(stderr,"INJECTING #%d = %d\n", modelstate->punc_counter, result); 
             modelstate->punc_counter++;
@@ -524,7 +531,8 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
 
     } else if (modelstate->punc_state == PUNC_STATE_GAPPING) {
         if (verbose_mode && modelstate->punc_counter % 10 == 0) fprintf(stderr,"GAPPING count %d\n",modelstate->punc_counter);
-        if (modelstate->punc_counter >= (modelstate->puncturing_gap-1)) {
+        if ((modelstate->punc_counter >= (modelstate->puncturing_gap-1)) &&
+           (modelstate->punc_event_count < modelstate->punc_event_limit)) {
             if (verbose_mode) fprintf(stderr,"\nGAPPING --> INJECTING\n");
             modelstate->punc_counter = 0;
             modelstate->punc_state = PUNC_STATE_INJECTING;
@@ -534,11 +542,16 @@ int puncturingsource(t_modelstate* modelstate, t_rngstate* rngstate) {
                 theint = getrand16(rngstate) & 1;
                 modelstate->punc_both_level = theint;
             }
+        } else if (modelstate->punc_event_count < modelstate->punc_event_limit) {
+            modelstate->punc_state = PUNC_STATE_FINISHED;
         } else {
             //fprintf(stderr,"GAPPING #%d = %d\n", modelstate->punc_counter, result); 
             modelstate->punc_counter++;
         }
+    } else if (modelstate->punc_state == PUNC_STATE_FINISHED) {
+        modelstate->punc_state = PUNC_STATE_FINISHED;
     }
+
     return result;
 }
 
@@ -1546,7 +1559,7 @@ void markov2pinit(t_modelstate *modelstate, t_rngstate *rngstate)
         fprintf(stderr,"  p10             = %f\n",modelstate->p10);
         fprintf(stderr,"  entropy         = %f\n",modelstate->entropy);
         //fprintf(stderr,"  MCV Prob        = %f\n",lmcv_prob);
-        fprintf(stderr,"  Bits per symbol = %d\n",modelstate->bitwidth);
+        //fprintf(stderr,"  Bits per symbol = %d\n",modelstate->bitwidth);
     }
 
     if (modelstate->using_yaml > 0)
