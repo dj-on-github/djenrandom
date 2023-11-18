@@ -1,0 +1,3 @@
+[submodule "rdrand_stdint"]
+	path = rdrand_stdint
+	url = https://github.com/dj-on-github/rdrand_stdint
