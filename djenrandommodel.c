@@ -32,7 +32,7 @@
 
 #include "aes128k128d.h"
 #include "djenrandommodel.h"
-#include "rdrand.h"
+#include "rdrand_stdint/rdrand_stdint.h"
 #include "markov2p.h"
 
 #define RIGHT_VARIANCE 1

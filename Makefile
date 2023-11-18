@@ -1,13 +1,13 @@
 CC = gcc
-CFLAGS = -I/usr/local/include -m64 -Wall -maes
+CFLAGS = -I/usr/local/include -Irdrand_stdint -m64 -Wall -maes
 LDFLAGS = -L/usr/local/lib 
 LDLIBS = -lm
 
-djenrandom: rdrand.o markov2p.o djenrandom.o djenrandommodel.o aes128k128d.o cmac.o aes128k128d.h djenrandommodel.h cmac.h
-	$(CC) $(CFLAGS) $(LDFLAGS) rdrand.o markov2p.o djenrandom.o djenrandommodel.o aes128k128d.o cmac.o -o djenrandom $(LDLIBS)
+djenrandom: rdrand_stdint.o markov2p.o djenrandom.o djenrandommodel.o aes128k128d.o cmac.o aes128k128d.h djenrandommodel.h cmac.h
+	$(CC) $(CFLAGS) $(LDFLAGS) rdrand_stdint.o markov2p.o djenrandom.o djenrandommodel.o aes128k128d.o cmac.o -o djenrandom $(LDLIBS)
 
-rdrand.o: rdrand.c rdrand.h
-	$(CC) -c $(CFLAGS) -o rdrand.o rdrand.c
+rdrand_stdint.o: rdrand_stdint/rdrand_stdint.c rdrand_stdint/rdrand_stdint.h
+	$(CC) -c $(CFLAGS) -o rdrand_stdint.o rdrand_stdint/rdrand_stdint.c
 
 markov2p.o: markov2p.c markov2p.h
 	$(CC) -c $(CFLAGS) -o markov2p.o markov2p.c
@@ -28,7 +28,7 @@ install:
 	cp djenrandom /usr/local/bin
 
 clean:
-	rm rdrand.o
+	rm rdrand_stdint.o
 	rm markov2p.o
 	rm aes128k128d.o
 	rm djenrandom.o

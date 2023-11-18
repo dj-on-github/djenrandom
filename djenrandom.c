@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
-#include "rdrand.h"
+#include "rdrand_stdint/rdrand_stdint.h"
 #include "markov2p.h"
 
 #define MODEL_SUMS 0
