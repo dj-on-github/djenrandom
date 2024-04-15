@@ -17,8 +17,7 @@ Markov 2 Parameter : This implements a two state model. States 1 and 0, which ou
                      bias a serial correlation to be modelled in the same data series.
 Markov Sigmoid : This generates bits by walking along a finite Markov chain with transition probabilities set
                      according to a chosen sigmoid curve. Moving left generates 0, moving right generates 1.
-                     
-                     bias a serial correlation to be modelled in the same data series.
+                     This enables both bias and serial correlation to be modelled in the same data series.
 File : This reads data from a file and re-outputs it.
 
 This program generates random data in 1KiByte blocks. The number of blocks is controlled by the -k <blocks> option.
