@@ -52,6 +52,7 @@
 #define MODEL_MARKOV2P 10
 #define MODEL_MARKOV_SIGMOID 11
 #define MODEL_PUNCTURING 12
+#define MODEL_NORMALINTEGER 13 
                     
 #define INFORMAT_01 0
 #define INFORMAT_HEX 1
@@ -78,7 +79,7 @@ int puncture_this_bit(t_modelstate* modelstate);
 
 void display_usage() {
 fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
-fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|sinbias|markov_2_param|puncturing|file>] [-l <left_stepsize>]\n"); 
+fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|normalinteger|sinbias|markov_2_param|puncturing|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
 fprintf(stderr,"       [--pcg_state_16=<16|32|64>] [--pcg_generator=<LCG|MCG>] [--pcg_of=<XSH_RS|XSH|RR]\n");
@@ -97,7 +98,7 @@ fprintf(stderr,"Generate random bits with configurable non-uniformities.\n");
 fprintf(stderr,"  Author: David Johnston, dj@deadhat.com\n");
 fprintf(stderr,"\n");
 
-fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|file>\n");
+fprintf(stderr,"  -m, --model=<pure(default)|sums|biased|correlated|lcg|pcg|xorshift|normal|normalinteger|file>\n");
 fprintf(stderr,"              Select random source model\n");
 
 fprintf(stderr,"\nStep Update Metastable Source model (-m sums) Options\n\n");
@@ -140,6 +141,12 @@ fprintf(stderr,"  --min_range=<float>       The start of the range of the curve.
 fprintf(stderr,"  --max_range=<float>       The end of the range of the curve. Usually between 2.0 and 5.0\n");
 
 fprintf(stderr,"\nNormal model (-m normal) Options\n\n");
+fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
+fprintf(stderr,"  --variance=<normal variance>   variance of the normally distributed data\n");
+
+fprintf(stderr,"\nNormal Integer model (-m normalinteger) Options\n\n");
+fprintf(stderr,"    Pass in floating point mean and variance, but set the mean to the middle of where you want it in the 32 bit integer space.\n");
+fprintf(stderr,"    A floating point Gaussian generator is used and then sampled into the int32 values.\n");
 fprintf(stderr,"  --mean=<normal mean>           mean of the normally distributed data. Only for normal model\n");
 fprintf(stderr,"  --variance=<normal variance>   variance of the normally distributed data\n");
 
@@ -297,7 +304,11 @@ double dbl_entropysource(int model, t_modelstate* modelstate, t_rngstate* rngsta
 int entropysource(int model, t_modelstate* modelstate, t_rngstate* rngstate)
 {
     int result;
-    if (model==MODEL_SUMS)
+    if (model==MODEL_NORMALINTEGER)
+    {
+        result = normalintegersource(modelstate, rngstate);
+    }
+    else if (model==MODEL_SUMS)
     {
         result = smoothsource(modelstate, rngstate);
     }
@@ -462,6 +473,10 @@ void initialize_sim(int model, t_modelstate* modelstate, t_rngstate* rngstate)
     {
         normalinit(modelstate, rngstate);
     }
+    else if (model==MODEL_NORMALINTEGER)
+    {
+        normalintegerinit(modelstate, rngstate);
+    }
     else if (model==MODEL_LCG)
     {
         lcginit(modelstate, rngstate);
@@ -543,6 +558,7 @@ int main(int argc, char** argv)
     unsigned char thesample[256];
     unsigned char thebpbsample[2048];
     double floatingpointsamples[256];
+    int32_t normalintegersamples[32];
     t_rngstate rngstate;
     t_modelstate modelstate;
 
@@ -901,10 +917,11 @@ int main(int argc, char** argv)
                 else if (strcmp(optarg,"pcg")==0) model=MODEL_PCG;
                 else if (strcmp(optarg,"xorshift")==0) model=MODEL_XORSHIFT;
                 else if (strcmp(optarg,"normal")==0) model=MODEL_NORMAL;
+                else if (strcmp(optarg,"normalinteger")==0) model=MODEL_NORMALINTEGER;
                 else if (strcmp(optarg,"file")==0) model=MODEL_FILE;
                 else
                 {
-                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, puncturing, biased, correlated, markov_2_param, markov_sigmoid, normal or file.\n",optarg);
+                    fprintf(stderr,"model type %s not recognized. Choose from sums, pure, puncturing, biased, correlated, markov_2_param, markov_sigmoid, normal, normalinteger or file.\n",optarg);
                     exit(1);
                 }
                 break; 
@@ -1317,9 +1334,10 @@ int main(int argc, char** argv)
         
     if (kilobytes < 1)
     {
-            fprintf(stderr,"Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
-            abort=1;
-        }
+        fprintf(stderr,"Error: -k n: Output size must be 1 or more kilobytes. n must be an integer of 1 or greater. Supplied value = %d\n",kilobytes);
+        abort=1;
+    }
+
     if ((width >256) || (width < 1))
     {
         fprintf(stderr,"Error: Width must be from 1 to 256\n");
@@ -1526,6 +1544,12 @@ int main(int argc, char** argv)
             fprintf(stderr,"  mean  = %f\n",modelstate.mean);
             fprintf(stderr,"  variance  = %f\n",modelstate.variance);
         }
+        if (model == MODEL_NORMALINTEGER)
+        {
+            fprintf(stderr,"model=normalinteger\n");
+            fprintf(stderr,"  mean  = %f\n",modelstate.mean);
+            fprintf(stderr,"  variance  = %f\n",modelstate.variance);
+        }
 
         if (model == MODEL_FILE)
         {
@@ -1668,7 +1692,7 @@ int main(int argc, char** argv)
 
     /* entropy = 0x00;*/
     /* Pull some bits to let it settle. But not in the following modes since there is not settling time needed */
-    if (!((model==MODEL_PURE) || (model==MODEL_PUNCTURING) || (model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_LCG) || (model==MODEL_PCG) || (model==MODEL_MARKOV2P) || (model==MODEL_MARKOV_SIGMOID)))
+    if (!((model==MODEL_PURE) || (model==MODEL_PUNCTURING) || (model==MODEL_FILE) || (model==MODEL_NORMAL) || (model==MODEL_NORMALINTEGER) || (model==MODEL_LCG) || (model==MODEL_PCG) || (model==MODEL_MARKOV2P) || (model==MODEL_MARKOV_SIGMOID)))
     for(i=0; i<128; i++)
     {
         thebit = entropysource(model, &modelstate, &rngstate);
@@ -1676,17 +1700,52 @@ int main(int argc, char** argv)
     }
 
     /* Start with pulling samples and testing them */
+    int32_t normintval; //2s comp value from normal integer model
 
-    if (model==MODEL_NORMAL) /* or any other floating point model that is added */
+    if (model==MODEL_NORMALINTEGER) /* or any other floating point model that is added */
     {
         
+        for (simrun =0; simrun < kilobytes; simrun++)
+        {
+            for (onek=0;onek<32;onek++)
+            {
+                normintval = entropysource(model, &modelstate, &rngstate);
+                normalintegersamples[onek]=normintval;
+            }
+            /* Output the 32 value block */
+
+            if (ofile == 1 && binary_mode==1) /* binary to a file */
+            {
+                fwrite(normalintegersamples, 128, 1, fp);
+            }
+            else if (ofile == 0 && binary_mode == 0) /* ascii text to stdout */
+            {
+                for (j=0;j<32;j++)
+                {
+                    fprintf(stdout,"%08X\n",normalintegersamples[j]);
+                }
+            }
+            else if (ofile == 1 && binary_mode == 0) /* Floatingpoint text to a file */
+            {
+                for (j=0;j<32;j++)
+                {
+                    fprintf(fp,"%08X\n",normalintegersamples[j]);
+                }
+
+            }
+            else /* binary to stdout */
+            {
+                fwrite(normalintegersamples, 32, 1, stdout);
+            }
+        }
+    } else if (model==MODEL_NORMAL) {
         for (simrun =0; simrun < kilobytes; simrun++)
         {
             for (onek=0;onek<4;onek++)
             {
                 for(samplenum=0;samplenum<256;samplenum++)
                 {
-                    thevalue = dbl_entropysource(model, &modelstate, &rngstate);
+                    thevalue = entropysource(model, &modelstate, &rngstate);
                     floatingpointsamples[samplenum]=thevalue;
                 }
 
@@ -1718,8 +1777,8 @@ int main(int argc, char** argv)
             }
 
         }
-    }
-    else /* model = sums, pure, puncturing, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
+
+    } else /* model = sums, pure, puncturing, biased, correlated, lcg, pcg, xorshift, markov_2_param, markov_sigmoid or file*/
     {
         lineindex = 0;
         

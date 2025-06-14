@@ -1352,13 +1352,24 @@ int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate)
     return(result);
 }
 
-double normalsource(t_modelstate *modelstate, t_rngstate* rngstate)
+double normalsource(t_modelstate *modelstate, t_rngstate *rngstate)
 {
         double result;
         
     result = getNormal(modelstate, rngstate);
 
         return(result);
+}
+
+int normalintegersource(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+    int result;
+    double fnormal;
+    
+    fnormal = getNormal(modelstate, rngstate);
+    result = (int)fnormal;
+    return(result);
+    
 }
 
 /*****************************************/
@@ -1955,4 +1966,19 @@ void normalinit(t_modelstate *modelstate, t_rngstate *rngstate)
     }
 }
 
+
+void normalintegerinit(t_modelstate *modelstate, t_rngstate *rngstate)
+{
+    unsigned char out[16];
+
+    if (rngstate->randseed==1)
+    {
+        nondeterministic_bytes(16, rngstate->rngbits, rngstate);
+    }
+    else
+    {
+        aes128k128d(rngstate->k,rngstate->v,out);
+        aes128k128d(out,rngstate->k,rngstate->rngbits);
+    }
+}
 

@@ -216,6 +216,7 @@ int filesource(       t_modelstate *modelstate, t_rngstate* rngstate);
 int filesourcehex(       t_modelstate *modelstate, t_rngstate* rngstate);
 int filesourcebinary(t_modelstate* modelstate, t_rngstate* rngstate);
 double normalsource(t_modelstate *modelstate, t_rngstate* rngstate);
+int normalintegersource(t_modelstate *modelstate, t_rngstate* rngstate);
 
 /* initialize_sim(k,v,seed);                                      */
 /* set aside two 16 byte vectors k and v to keep the simulation's */
@@ -235,6 +236,7 @@ void sinbiasinit(    t_modelstate* modelstate, t_rngstate* rngstate);
 void lcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
 void pcginit(        t_modelstate* modelstate, t_rngstate* rngstate);
 void xorshiftinit(   t_modelstate* modelstate, t_rngstate* rngstate);
+void normalintegerinit(t_modelstate *modelstate, t_rngstate* rngstate);
 void normalinit(     t_modelstate *modelstate, t_rngstate* rngstate);
 void fileinit(       t_modelstate *modelstate, t_rngstate* rngstate);
 
