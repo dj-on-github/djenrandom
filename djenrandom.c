@@ -78,7 +78,7 @@ int puncture_this_bit(t_modelstate* modelstate);
 
 
 void display_usage() {
-fprintf(stderr,"Usage: djrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
+fprintf(stderr,"Usage: djenrandom [-bsvhn] [-x <bits>] [-y <bits>] [-z <bits>] [-c <generate length>]\n");
 fprintf(stderr,"       [-m <|pure(default)|sums|biased|correlated|normal|normalinteger|sinbias|markov_2_param|puncturing|file>] [-l <left_stepsize>]\n"); 
 fprintf(stderr,"       [-r <right_stepsize>] [--stepnoise=<noise on step>] [--bias=<bias>]\n");
 fprintf(stderr,"       [--correlation=<correlation>] [--mean=<normal mean>] [--variance=<normal variance>]\n");
@@ -88,6 +88,7 @@ fprintf(stderr,"       [--p10=<probability of 10 transition] [--p01=<probability
 fprintf(stderr,"       [--states=<integer of number of states in the markov chain>]\n");
 fprintf(stderr,"       [--sigmoid=<flat|linear|sums|logistic|tanh|atan|gudermann|erf|algebraic]\n");
 fprintf(stderr,"       [--min_range=<float less than max_range>][--max_range=<float greater than min_range>]\n");
+fprintf(stderr,"       [--decimate][--decimate_ratio=<2 to n>]\n");
 fprintf(stderr,"       [-o <output_filename>] [-j <j filename>] [-i <input filename>] [-f <hex|binary|01>]\n");
 fprintf(stderr,"       [-J <json_filename>] [-Y <yaml_filename>]\n");
 fprintf(stderr,"       [--bpb=<binary bits per byte>]\n");
