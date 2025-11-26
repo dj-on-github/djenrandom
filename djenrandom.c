@@ -182,6 +182,10 @@ fprintf(stderr,"                                 chosen at random per sample\n")
 fprintf(stderr,"  --xor4                         Enable 4 bit xor feedback digitizer\n");
 fprintf(stderr,"  --xor11                        Enable 11 bit xor feedback digitizer\n");
 fprintf(stderr,"  --noresetxor                   xor feedback is reset every 512 bits. This disabled that.\n");
+
+fprintf(stderr,"  --decimate                     Enable bitwise decimation.\n");
+fprintf(stderr,"  --decimate_ratio=<int>         Set the decimation ratio (default 2 when decimation enabled).\n");
+
 fprintf(stderr,"  -s, --seed                     Nondeterministically seed the internal RNG with /dev/random\n");
 fprintf(stderr,"  -D, --detseed <seed string>    Deterministically seed the internal RNG with the given string\n");
 fprintf(stderr,"  -n, --noaesni                  Don't use AESNI instruction.\n");
@@ -512,6 +516,8 @@ int main(int argc, char** argv)
     int xor11bit;
     int downsample;
     int noresetxor=0;
+    int decimate=0;
+    int decimate_ratio=2;
 
     //int inputbits;
     int shiftreg;
@@ -580,6 +586,9 @@ int main(int argc, char** argv)
     downsample = 0;    // 0=Do not use the downsampler of the decorellator, 1 = do.
     shiftreg = 0;  // Preset the decorrelator shiftregister to 0.
     puncture = 0; // Default to not puncture the source data
+
+    decimate=0;
+    decimate_ratio=2;
 
     binary_mode = 0; /* binary when 1 */
     nistoddball_mode = 0;
@@ -730,6 +739,8 @@ int main(int argc, char** argv)
     { "xor", required_argument, NULL, 'x' },
     { "xmin", required_argument, NULL, 0 },
     { "xmax", required_argument, NULL, 0 },
+    { "decimate", no_argument, NULL, 0 },
+    { "decimate_ratio", required_argument, NULL, 0 },
     { "seed", no_argument, NULL, 's' },
     { "detseed", required_argument, NULL, 'D' },
     { "noaesni", no_argument, NULL, 'n' },
@@ -961,6 +972,12 @@ int main(int argc, char** argv)
                     hex_mode = 0;
                     binary_mode = 1;
                     nistoddball_mode = 0;
+                }
+                if( strcmp( "decimate", longOpts[longIndex].name ) == 0 ) {
+                    decimate=1;
+                }
+                if( strcmp( "decimate_ratio", longOpts[longIndex].name ) == 0 ) {
+                    decimate_ratio=atoi(optarg);
                 }
                 if( strcmp( "puncturing_start", longOpts[longIndex].name ) == 0 ) {
                     modelstate.puncturing_start = atoi(optarg);
@@ -1799,7 +1816,17 @@ int main(int argc, char** argv)
                     }
 
                     /* Pull 8 bits */
-                    if (xor4bit==1) {
+		    if (decimate==1) {
+		    	for(xoriter=0; xoriter < (decimate_ratio*8); xoriter++) {
+                            newbit = entropysource(model, &modelstate, &rngstate);
+                            modelstate.lastbit = newbit;
+			    if ((xoriter % decimate_ratio)==0) {
+			        shiftreg = (shiftreg << 1) | newbit;
+			    }
+			}
+                        thebyte = (shiftreg & 0xff);
+		    }
+		    else if (xor4bit==1) {
                         // Every 512 bits, clear the shiftregister.
                         // This models the point where the OSTE registers have been
                         // consumed by the conditioner and the conditioner is busy
